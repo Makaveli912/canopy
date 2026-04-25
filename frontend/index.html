@@ -38,33 +38,10 @@ a{color:var(--cyan);text-decoration:none}
 .logo{padding:0 20px 24px;border-bottom:1px solid var(--border);margin-bottom:16px}
 .logo-mark{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--green);letter-spacing:-1px}
 .logo-sub{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:2px}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;color:var(--dim);font-size:13px;transition:all .15s;border-left:2px solid transparent;position:relative}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;color:var(--dim);font-size:13px;transition:all .15s;border-left:2px solid transparent}
 .nav-item:hover{color:var(--text);background:var(--green-dim)}
 .nav-item.active{color:var(--green);border-left-color:var(--green);background:var(--green-dim)}
-.nav-icon{font-size:15px;width:18px;text-align:center;flex-shrink:0}
-
-/* ── Tooltip (shown on desktop when sidebar is full-width) ── */
-.nav-tooltip{
-  position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);
-  background:#1a2030;border:1px solid var(--border2);border-radius:6px;
-  padding:5px 10px;font-size:11px;color:var(--text);white-space:nowrap;
-  pointer-events:none;opacity:0;transition:opacity .15s;z-index:100;
-  box-shadow:0 4px 16px #00000060;
-}
-.nav-tooltip::before{
-  content:'';position:absolute;right:100%;top:50%;transform:translateY(-50%);
-  border:5px solid transparent;border-right-color:#1a2030;
-}
-/* Only show tooltip when sidebar is collapsed (mobile) */
-@media(max-width:640px){
-  .nav-item:hover .nav-tooltip{opacity:1}
-}
-
-/* ── Mobile icon label below icon ── */
-.nav-sublabel{
-  display:none;font-size:8px;letter-spacing:.5px;text-transform:uppercase;
-  color:var(--muted);margin-top:2px;text-align:center;line-height:1;
-}
+.nav-icon{font-size:15px;width:18px;text-align:center}
 .sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border)}
 .rpc-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
@@ -167,10 +144,9 @@ a{color:var(--cyan);text-decoration:none}
 .info-val{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text)}
 
 @media(max-width:640px){
-  .sidebar{width:64px}
+  .sidebar{width:56px}
   .logo-mark,.logo-sub,.nav-label,.sidebar-footer{display:none}
-  .nav-item{padding:10px 4px;justify-content:center;flex-direction:column;gap:3px}
-  .nav-sublabel{display:block}
+  .nav-item{padding:14px;justify-content:center}
   .main{padding:16px}
   .row2,.row3{grid-template-columns:1fr}
 }
@@ -186,52 +162,28 @@ a{color:var(--cyan);text-decoration:none}
       <div class="logo-sub">Prediction Markets</div>
     </div>
     <div class="nav-item active" onclick="showPage('markets',this)">
-      <span class="nav-icon">◈</span>
-      <span class="nav-label">Markets</span>
-      <span class="nav-sublabel">Markets</span>
-      <span class="nav-tooltip">Browse all open &amp; resolved markets</span>
+      <span class="nav-icon">◈</span><span class="nav-label">Markets</span>
     </div>
     <div class="nav-item" onclick="showPage('create',this)">
-      <span class="nav-icon">＋</span>
-      <span class="nav-label">Create</span>
-      <span class="nav-sublabel">Create</span>
-      <span class="nav-tooltip">Open a new YES/NO prediction market</span>
+      <span class="nav-icon">＋</span><span class="nav-label">Create</span>
     </div>
     <div class="nav-item" onclick="showPage('predict',this)">
-      <span class="nav-icon">◎</span>
-      <span class="nav-label">Predict</span>
-      <span class="nav-sublabel">Predict</span>
-      <span class="nav-tooltip">Stake on a YES or NO outcome</span>
+      <span class="nav-icon">◎</span><span class="nav-label">Predict</span>
     </div>
     <div class="nav-item" onclick="showPage('resolve',this)">
-      <span class="nav-icon">✓</span>
-      <span class="nav-label">Resolve</span>
-      <span class="nav-sublabel">Resolve</span>
-      <span class="nav-tooltip">Finalise a market with the winning outcome</span>
+      <span class="nav-icon">✓</span><span class="nav-label">Resolve</span>
     </div>
     <div class="nav-item" onclick="showPage('claim',this)">
-      <span class="nav-icon">◆</span>
-      <span class="nav-label">Claim</span>
-      <span class="nav-sublabel">Claim</span>
-      <span class="nav-tooltip">Collect your winnings from a resolved market</span>
+      <span class="nav-icon">◆</span><span class="nav-label">Claim</span>
     </div>
     <div class="nav-item" onclick="showPage('wallet',this)">
-      <span class="nav-icon">◻</span>
-      <span class="nav-label">Wallet</span>
-      <span class="nav-sublabel">Wallet</span>
-      <span class="nav-tooltip">Query accounts &amp; send tokens</span>
+      <span class="nav-icon">◻</span><span class="nav-label">Wallet</span>
     </div>
     <div class="nav-item" onclick="showPage('signer',this)">
-      <span class="nav-icon">⚿</span>
-      <span class="nav-label">Signer</span>
-      <span class="nav-sublabel">Signer</span>
-      <span class="nav-tooltip">Load your BLS12-381 key to sign transactions</span>
+      <span class="nav-icon">⚿</span><span class="nav-label">Signer</span>
     </div>
     <div class="nav-item" onclick="showPage('node',this)">
-      <span class="nav-icon">▣</span>
-      <span class="nav-label">Node</span>
-      <span class="nav-sublabel">Node</span>
-      <span class="nav-tooltip">RPC connection &amp; chain status</span>
+      <span class="nav-icon">▣</span><span class="nav-label">Node</span>
     </div>
     <div class="sidebar-footer">
       <div class="rpc-row">
@@ -569,10 +521,25 @@ a{color:var(--cyan);text-decoration:none}
 <div id="toast"></div>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     BLS12-381 via @noble/curves (ESM CDN — no build step required)
+     BLS12-381 via dynamic import from esm.sh
+     importmap is unreliable on Android/mobile browsers — dynamic import works everywhere
 ════════════════════════════════════════════════════════════════════ -->
 <script type="module">
-import { bls12_381 } from 'https://esm.sh/@noble/curves@1.2.0/bls12-381';
+// Dynamic import — no importmap needed, works on all browsers including Android
+let bls12_381;
+try {
+  const mod = await import('https://esm.sh/@noble/curves@1.4.2/bls12-381');
+  bls12_381 = mod.bls12_381;
+} catch(e) {
+  // Fallback CDN
+  try {
+    const mod = await import('https://cdn.skypack.dev/@noble/curves@1.4.2/bls12-381');
+    bls12_381 = mod.bls12_381;
+  } catch(e2) {
+    console.error('Failed to load BLS library:', e2);
+    window.toast('Failed to load BLS library — check internet connection', true);
+  }
+}
 
 // ── Config ────────────────────────────────────────────────────────────
 // RPC host is persisted in localStorage (host only, never private keys)
@@ -745,7 +712,7 @@ function encodeTxForSigning(messageType, typeUrl, innerMsgBytes, meta) {
     embedField(2, anyBytes),
     // field 3 (signature) intentionally omitted — this is the sign-bytes rule
     varintField(4, meta.createdHeight || currentHeight),
-    varintField(5, meta.time || BigInt(Date.now() * 1000)),  // microseconds — matches Canopy TS test
+    varintField(5, meta.time || BigInt(Date.now()) * 1_000_000n),  // nanoseconds
     varintField(6, meta.fee || 10000),
     stringField(7, meta.memo || ''),
     varintField(8, meta.networkId || 1),
@@ -756,12 +723,10 @@ function encodeTxForSigning(messageType, typeUrl, innerMsgBytes, meta) {
 // ── BLS12-381 signing ─────────────────────────────────────────────────
 async function blsSign(msgBytes) {
   if (!signerPrivKey) throw new Error('No private key loaded — go to Signer panel first');
-  // Canopy uses G2 (long) signatures via kyber bdn.Scheme — 96 bytes.
-  // bls12_381.sign() is shortSignatures (G1, 48 bytes) and will be REJECTED.
-  // Must use longSignatures: hash to G2 point, then sign, then serialise.
-  const hashedPoint = bls12_381.longSignatures.hash(msgBytes);
-  const sigPoint    = bls12_381.longSignatures.sign(hashedPoint, signerPrivKey);
-  return bls12_381.longSignatures.Signature.toBytes(sigPoint);
+  if (!bls12_381) throw new Error('BLS library not loaded — check internet connection');
+  // bls12_381.sign() uses G2 signatures (96 bytes) matching Canopy kyber bdn.Scheme
+  // DST: BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_ (standard, matches Canopy)
+  return await bls12_381.sign(msgBytes, signerPrivKey);
 }
 
 // ── Build the JSON body for POST /v1/tx ──────────────────────────────
@@ -778,7 +743,7 @@ async function buildSignedTx(messageType, typeUrl, innerMsgBytes, meta) {
   const anyBytes = encodeAny(typeUrl, innerMsgBytes);
 
   return {
-    type: messageType,   // Canopy RPC expects "type" not "messageType"
+    messageType,
     msg: {
       '@type': typeUrl,
       value: bytesToB64(innerMsgBytes),   // base64 of inner serialised message only
@@ -788,7 +753,7 @@ async function buildSignedTx(messageType, typeUrl, innerMsgBytes, meta) {
       signature:  bytesToB64(sig),
     },
     createdHeight: meta.createdHeight || currentHeight,
-    time:          Number(meta.time   || BigInt(Date.now() * 1000)),
+    time:          Number(meta.time   || BigInt(Date.now()) * 1_000_000n),
     fee:           meta.fee           || 10000,
     memo:          meta.memo          || '',
     networkID:     meta.networkId     || 1,
@@ -798,14 +763,14 @@ async function buildSignedTx(messageType, typeUrl, innerMsgBytes, meta) {
 
 function buildUnsignedTx(messageType, typeUrl, innerMsgBytes, meta) {
   return {
-    type: messageType,   // Canopy RPC expects "type" not "messageType"
+    messageType,
     msg: {
       '@type': typeUrl,
       value: bytesToB64(innerMsgBytes),
     },
     signature: null,
     createdHeight: meta.createdHeight || currentHeight,
-    time:          Number(meta.time   || BigInt(Date.now() * 1000)),
+    time:          Number(meta.time   || BigInt(Date.now()) * 1_000_000n),
     fee:           meta.fee           || 10000,
     memo:          meta.memo          || '',
     networkID:     meta.networkId     || 1,
@@ -919,12 +884,14 @@ window.loadKey = async function() {
   if (!hex || hex.length !== 64) return toast('Private key must be 64 hex chars', true);
   try {
     signerPrivKey = hexToBytes(hex);
-    // derive public key (G1 point, 48 bytes compressed)
-    signerPubKey  = bls12_381.G1.ProjectivePoint.fromPrivateKey(signerPrivKey).toRawBytes(true);
+    if (!bls12_381) throw new Error('BLS library not loaded — check internet connection');
+    // G1 public key (48 bytes compressed) — correct for G2 signature scheme
+    signerPubKey  = bls12_381.getPublicKey(signerPrivKey);
     const pubHex  = bytesToHex(signerPubKey);
-    // derive 20-byte address: last 20 bytes of SHA-256(pubkey)
+    // Canopy address = FIRST 20 bytes of SHA-256(pubkey)
+    // (SHA-256 = 32 bytes, slice(0,20) gives first 20)
     const hashBuf = await crypto.subtle.digest('SHA-256', signerPubKey);
-    const addrBytes = new Uint8Array(hashBuf).slice(12); // last 20 bytes
+    const addrBytes = new Uint8Array(hashBuf).slice(0, 20); // first 20 bytes
     const addrHex   = bytesToHex(addrBytes);
 
     document.getElementById('keyStatus').className     = 'key-status loaded';
@@ -978,10 +945,8 @@ window.loadMarkets = async function() {
   const el = document.getElementById('marketsList');
   el.innerHTML = '<div class="loading"><span class="blink">▪▪▪</span> Scanning chain state…</div>';
   try {
-    // JoinLenPrefix([]byte{0x10}, id) produces keys that start with bytes
-    // [0x01, 0x10, ...] — length byte (0x01) then the prefix value (0x10).
-    // So the correct hex prefix string for the state scan is "0110".
-    const data    = await rpcGet('/v1/query/state?prefix=0110&limit=100&reverse=false');
+    // prefix=10 hex = byte 0x10 = marketPrefix in contract.go
+    const data    = await rpcGet('/v1/query/state?prefix=10&limit=100&reverse=false');
     const entries = (data.entries || data.results || []);
     if (entries.length === 0) {
       el.innerHTML = '<div class="loading">No markets found on-chain yet. Create the first one!</div>';
