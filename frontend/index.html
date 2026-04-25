@@ -742,7 +742,13 @@ async function blsSign(msgBytes) {
 // the inner type is NOT registered in the server's type registry —
 // the fallback is { "@type": "...", "value": "<base64 inner bytes>" }.
 async function buildSignedTx(messageType, typeUrl, innerMsgBytes, meta) {
-  const txBytes = encodeTxForSigning(messageType, typeUrl, innerMsgBytes, meta);
+  // CRITICAL: compute time ONCE and use the same value for both sign bytes and tx body.
+  // If Date.now() is called twice, the values differ by milliseconds and the node's
+  // signature verification will recompute sign bytes with the tx body time and fail.
+  const txTime = BigInt(Date.now() * 1000); // microseconds
+  const metaWithTime = { ...meta, time: txTime };
+
+  const txBytes = encodeTxForSigning(messageType, typeUrl, innerMsgBytes, metaWithTime);
   const sig     = await blsSign(txBytes);
 
   const sigObj = {
@@ -752,15 +758,13 @@ async function buildSignedTx(messageType, typeUrl, innerMsgBytes, meta) {
   const base = {
     type:          messageType,
     signature:     sigObj,
-    createdHeight: meta.createdHeight || currentHeight,
-    time:          Number(BigInt(Date.now() * 1000)),
-    fee:           meta.fee || 10000,
+    createdHeight: metaWithTime.createdHeight || currentHeight,
+    time:          Number(txTime),
+    fee:           metaWithTime.fee || 10000,
     memo:          '',
-    networkID:     meta.networkId || 1,
-    chainID:       meta.chainId   || 1,
+    networkID:     metaWithTime.networkId || 1,
+    chainID:       metaWithTime.chainId   || 1,
   };
-  // 'send' is a registered core type — uses msg field with @type + base64 value
-  // All Praxis plugin types use msgTypeUrl + msgBytes (raw proto hex) per rpc_test.ts
   if (messageType === 'send') {
     return { ...base, msg: { '@type': typeUrl, value: bytesToB64(innerMsgBytes) } };
   }
