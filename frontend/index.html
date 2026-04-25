@@ -707,16 +707,20 @@ function encodeClaimWinnings({ claimerAddress, marketId }) {
 //   9 chain_id      (uint64)
 function encodeTxForSigning(messageType, typeUrl, innerMsgBytes, meta) {
   const anyBytes = encodeAny(typeUrl, innerMsgBytes);
+  const time = meta.time || BigInt(Date.now() * 1000); // microseconds — matches rpc_test.ts
+  const memo = meta.memo || '';
+  // CRITICAL: Go proto omits empty strings entirely (no field emitted for empty memo).
+  // Including an empty memo field produces different bytes and breaks signature verification.
   return concat(
     stringField(1, messageType),
     embedField(2, anyBytes),
-    // field 3 (signature) intentionally omitted — this is the sign-bytes rule
+    // field 3 (signature) intentionally omitted — sign-bytes rule
     varintField(4, meta.createdHeight || currentHeight),
-    varintField(5, meta.time || BigInt(Date.now()) * 1_000_000n),  // nanoseconds
+    varintField(5, time),
     varintField(6, meta.fee || 10000),
-    stringField(7, meta.memo || ''),
+    memo ? stringField(7, memo) : new Uint8Array(0), // omit field 7 if empty
     varintField(8, meta.networkId || 1),
-    varintField(9, meta.chainId || 1),
+    varintField(9, meta.chainId   || 1),
   );
 }
 
