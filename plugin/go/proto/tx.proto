@@ -4,7 +4,7 @@ package types;
 // If your module is github.com/hope93-commits/canopy, change this to:
 //   github.com/hope93-commits/canopy/plugin/go/contract
 // If you are working from the official canopy-network fork, keep as-is.
-option go_package = "github.com/canopy-network/go-plugin/contract";
+option go_package = "github.com/canopy-network/canopy/plugin/go/contract";
 
 import "google/protobuf/any.proto";
 
