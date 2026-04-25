@@ -572,7 +572,7 @@ a{color:var(--cyan);text-decoration:none}
      BLS12-381 via @noble/curves (ESM CDN — no build step required)
 ════════════════════════════════════════════════════════════════════ -->
 <script type="importmap">
-{"imports":{"@noble/curves/bls12-381":"https://esm.run/@noble/curves/bls12-381"}}
+{"imports":{"@noble/curves/bls12-381":"https://esm.run/@noble/curves@1.4.0/bls12-381"}}
 </script>
 
 <script type="module">
@@ -924,7 +924,7 @@ window.loadKey = async function() {
   try {
     signerPrivKey = hexToBytes(hex);
     // derive public key (G1 point, 48 bytes compressed)
-    signerPubKey  = bls12_381.G1.ProjectivePoint.fromPrivateKey(signerPrivKey).toRawBytes(true);
+    signerPubKey  = bls12_381.getPublicKey(signerPrivKey, true);
     const pubHex  = bytesToHex(signerPubKey);
     // derive 20-byte address: last 20 bytes of SHA-256(pubkey)
     const hashBuf = await crypto.subtle.digest('SHA-256', signerPubKey);
