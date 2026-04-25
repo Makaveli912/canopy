@@ -749,8 +749,8 @@ async function buildSignedTx(messageType, typeUrl, innerMsgBytes, meta) {
       value: bytesToB64(innerMsgBytes),   // base64 of inner serialised message only
     },
     signature: {
-      publicKey:  bytesToB64(signerPubKey),
-      signature:  bytesToB64(sig),
+      publicKey:  bytesToHex(signerPubKey),   // hex, not base64 — matches rpc_test.ts
+      signature:  bytesToHex(sig),             // hex, not base64 — matches rpc_test.ts
     },
     createdHeight: meta.createdHeight || currentHeight,
     time:          Number(meta.time   || BigInt(Date.now()) * 1_000_000n),
