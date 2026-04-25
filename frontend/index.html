@@ -245,8 +245,8 @@ a{color:var(--cyan);text-decoration:none}
           </div>
           <div class="field">
             <label>Stake Amount (μPRX)</label>
-            <input id="c_stake" type="number" value="1000000"/>
-            <div class="hint">Min 1,000,000 μPRX = 1 $PRX</div>
+            <input id="c_stake" type="number" value="500000"/>
+            <div class="hint">Min 100,000 μPRX</div>
           </div>
         </div>
         <div class="field">
@@ -1004,7 +1004,7 @@ window.buildCreateMarket = function() {
   if (cr.length !== 40)       return toast('Creator address must be 40 hex chars', true);
   if (res.length !== 40)      return toast('Resolver address must be 40 hex chars', true);
   if (rh <= currentHeight)    return toast(`Resolution height must be > ${currentHeight}`, true);
-  if (st < 1000000)           return toast('Min stake is 1,000,000 μPRX', true);
+  if (st < 100000)             return toast('Min stake is 100,000 μPRX', true);
   const inner = encodeCreateMarket({ creatorAddress: cr, question: q, description: d, resolverAddress: res, resolutionHeight: rh, stakeAmount: st });
   showPayload('c', buildUnsignedTx('create_market', 'type.googleapis.com/types.MessageCreateMarket', inner, { fee }));
   toast('Payload built');
@@ -1084,7 +1084,7 @@ window.signAndSubmitCreateMarket = async function() {
   if (cr.length !== 40)    return toast('Creator address must be 40 hex chars', true);
   if (res.length !== 40)   return toast('Resolver address must be 40 hex chars', true);
   if (rh <= currentHeight) return toast(`Resolution height must be > ${currentHeight}`, true);
-  if (st < 1000000)        return toast('Min stake is 1,000,000 μPRX', true);
+  if (st < 100000)          return toast('Min stake is 100,000 μPRX', true);
   const inner = encodeCreateMarket({ creatorAddress: cr, question: q, description: d, resolverAddress: res, resolutionHeight: rh, stakeAmount: st });
   await doSignAndSubmit('create_market', 'type.googleapis.com/types.MessageCreateMarket', inner, { fee });
 };
