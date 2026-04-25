@@ -19,8 +19,6 @@ func (p *PluginError) Error() string {
 	return fmt.Sprintf("\nModule:  %s\nCode:    %d\nMessage: %s", p.Module, p.Code, p.Msg)
 }
 
-// ── Built-in error codes 1–14 (from Canopy template — do not modify) ─────────
-
 func ErrPluginTimeout() *PluginError {
 	return NewError(1, DefaultModule, "a plugin timeout occurred")
 }
@@ -75,19 +73,4 @@ func ErrInvalidAmount() *PluginError {
 
 func ErrTxFeeBelowStateLimit() *PluginError {
 	return NewError(14, DefaultModule, "tx.fee is below state limit")
-}
-
-// ── Praxis-specific error codes — start at 15 to avoid built-in conflicts ─────
-
-// ErrWrongOutcome is returned when a claimer's prediction outcome does not
-// match the market's winning outcome. This is semantically distinct from
-// ErrInsufficientFunds and must not reuse code 9.
-func ErrWrongOutcome() *PluginError {
-	return NewError(15, DefaultModule, "prediction outcome does not match the winning outcome")
-}
-
-// ErrDuplicatePrediction is returned when a forecaster attempts to submit
-// a second prediction on a market they have already predicted on.
-func ErrDuplicatePrediction() *PluginError {
-	return NewError(16, DefaultModule, "a prediction already exists for this forecaster and market")
 }
