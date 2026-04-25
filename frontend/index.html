@@ -924,7 +924,7 @@ window.loadKey = async function() {
   try {
     signerPrivKey = hexToBytes(hex);
     // derive public key (G1 point, 48 bytes compressed)
-    signerPubKey  = bls12_381.getPublicKey(signerPrivKey);
+    signerPubKey  = bls12_381.G1.ProjectivePoint.fromPrivateKey(signerPrivKey).toRawBytes(true);
     const pubHex  = bytesToHex(signerPubKey);
     // derive 20-byte address: last 20 bytes of SHA-256(pubkey)
     const hashBuf = await crypto.subtle.digest('SHA-256', signerPubKey);
