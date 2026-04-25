@@ -740,42 +740,44 @@ async function blsSign(msgBytes) {
 async function buildSignedTx(messageType, typeUrl, innerMsgBytes, meta) {
   const txBytes = encodeTxForSigning(messageType, typeUrl, innerMsgBytes, meta);
   const sig     = await blsSign(txBytes);
-  const anyBytes = encodeAny(typeUrl, innerMsgBytes);
 
-  return {
-    messageType,
-    msg: {
-      '@type': typeUrl,
-      value: bytesToB64(innerMsgBytes),   // base64 of inner serialised message only
-    },
-    signature: {
-      publicKey:  bytesToHex(signerPubKey),   // hex, not base64 — matches rpc_test.ts
-      signature:  bytesToHex(sig),             // hex, not base64 — matches rpc_test.ts
-    },
-    createdHeight: meta.createdHeight || currentHeight,
-    time:          Number(meta.time   || BigInt(Date.now()) * 1_000_000n),
-    fee:           meta.fee           || 10000,
-    memo:          meta.memo          || '',
-    networkID:     meta.networkId     || 1,
-    chainID:       meta.chainId       || 1,
+  const sigObj = {
+    publicKey: bytesToHex(signerPubKey),
+    signature: bytesToHex(sig),
   };
+  const base = {
+    type:          messageType,
+    signature:     sigObj,
+    createdHeight: meta.createdHeight || currentHeight,
+    time:          Number(BigInt(Date.now() * 1000)),
+    fee:           meta.fee || 10000,
+    memo:          '',
+    networkID:     meta.networkId || 1,
+    chainID:       meta.chainId   || 1,
+  };
+  // 'send' is a registered core type — uses msg field with @type + base64 value
+  // All Praxis plugin types use msgTypeUrl + msgBytes (raw proto hex) per rpc_test.ts
+  if (messageType === 'send') {
+    return { ...base, msg: { '@type': typeUrl, value: bytesToB64(innerMsgBytes) } };
+  }
+  return { ...base, msgTypeUrl: typeUrl, msgBytes: bytesToHex(innerMsgBytes) };
 }
 
 function buildUnsignedTx(messageType, typeUrl, innerMsgBytes, meta) {
-  return {
-    messageType,
-    msg: {
-      '@type': typeUrl,
-      value: bytesToB64(innerMsgBytes),
-    },
-    signature: null,
+  const base = {
+    type:          messageType,
+    signature:     null,
     createdHeight: meta.createdHeight || currentHeight,
-    time:          Number(meta.time   || BigInt(Date.now()) * 1_000_000n),
-    fee:           meta.fee           || 10000,
-    memo:          meta.memo          || '',
-    networkID:     meta.networkId     || 1,
-    chainID:       meta.chainId       || 1,
+    time:          Number(BigInt(Date.now() * 1000)),
+    fee:           meta.fee || 10000,
+    memo:          '',
+    networkID:     meta.networkId || 1,
+    chainID:       meta.chainId   || 1,
   };
+  if (messageType === 'send') {
+    return { ...base, msg: { '@type': typeUrl, value: bytesToB64(innerMsgBytes) } };
+  }
+  return { ...base, msgTypeUrl: typeUrl, msgBytes: bytesToHex(innerMsgBytes) };
 }
 
 // ── RPC helpers ───────────────────────────────────────────────────────
