@@ -571,12 +571,8 @@ a{color:var(--cyan);text-decoration:none}
 <!-- ═══════════════════════════════════════════════════════════════════
      BLS12-381 via @noble/curves (ESM CDN — no build step required)
 ════════════════════════════════════════════════════════════════════ -->
-<script type="importmap">
-{"imports":{"@noble/curves/bls12-381":"https://unpkg.com/@noble/curves@1.2.0/esm/bls12-381.js"}}
-</script>
-
 <script type="module">
-import { bls12_381 } from '@noble/curves/bls12-381';
+import { bls12_381 } from 'https://esm.sh/@noble/curves@1.2.0/bls12-381';
 
 // ── Config ────────────────────────────────────────────────────────────
 // RPC host is persisted in localStorage (host only, never private keys)
