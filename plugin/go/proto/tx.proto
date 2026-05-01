@@ -1,10 +1,7 @@
 syntax = "proto3";
 package types;
 // IMPORTANT: this go_package path must match the go_package in your go.mod.
-// If your module is github.com/hope93-commits/canopy, change this to:
-//   github.com/hope93-commits/canopy/plugin/go/contract
-// If you are working from the official canopy-network fork, keep as-is.
-option go_package = "github.com/canopy-network/canopy/plugin/go/contract";
+option go_package = "github.com/Makaveli912/canopy/plugin/go/contract";
 
 import "google/protobuf/any.proto";
 
@@ -31,10 +28,14 @@ message MessageSend {
 }
 
 // FeeParams defines minimum fees for each transaction type.
-// Add Praxis fee fields starting at field 14 to avoid conflicts.
+// Fields 1–13 reserved for Canopy built-ins.
+// Praxis fee fields start at 14 to avoid conflicts.
 message FeeParams {
-  uint64 send_fee = 1; // @gotags: json:"sendFee"
-  // NO CONFLICT STARTING AT FIELD = 14
+  uint64 send_fee              = 1;  // @gotags: json:"sendFee"
+  uint64 create_market_fee     = 14; // @gotags: json:"createMarketFee"
+  uint64 submit_prediction_fee = 15; // @gotags: json:"submitPredictionFee"
+  uint64 resolve_market_fee    = 16; // @gotags: json:"resolveMarketFee"
+  uint64 claim_winnings_fee    = 17; // @gotags: json:"claimWinningsFee"
 }
 
 // Signature holds the BLS12-381 public key and signature bytes
@@ -85,16 +86,21 @@ message MessageClaimWinnings {
 // status: 0 = open, 1 = resolved, 2 = cancelled
 message Market {
   uint64 id                = 1;
-  bytes  creator_address   = 2; // @gotags: json:"creatorAddress"
+  bytes  creator_address   = 2;  // @gotags: json:"creatorAddress"
   string question          = 3;
   string description       = 4;
-  bytes  resolver_address  = 5; // @gotags: json:"resolverAddress"
-  uint64 resolution_height = 6; // @gotags: json:"resolutionHeight"
-  uint64 stake_amount      = 7; // @gotags: json:"stakeAmount"
-  uint64 yes_pool          = 8; // @gotags: json:"yesPool"
-  uint64 no_pool           = 9; // @gotags: json:"noPool"
+  bytes  resolver_address  = 5;  // @gotags: json:"resolverAddress"
+  uint64 resolution_height = 6;  // @gotags: json:"resolutionHeight"
+  uint64 stake_amount      = 7;  // @gotags: json:"stakeAmount"
+  uint64 yes_pool          = 8;  // @gotags: json:"yesPool"
+  uint64 no_pool           = 9;  // @gotags: json:"noPool"
   uint32 status            = 10; // 0=open 1=resolved 2=cancelled
   uint32 winning_outcome   = 11; // @gotags: json:"winningOutcome"
+  // stake_bond is the creator's returnable bond escrowed at market creation.
+  // It is returned to the creator on clean resolution in DeliverResolveMarket
+  // and set to 0 once returned. Separate from stake_amount which is kept for
+  // historical reference. (Roadmap item 13)
+  uint64 stake_bond        = 12; // @gotags: json:"stakeBond"
 }
 
 // Prediction holds one forecaster's stake on a specific market.
@@ -111,3 +117,10 @@ message Prediction {
 message MarketCounter {
   uint64 count = 1;
 }
+
+
+
+
+
+
+
