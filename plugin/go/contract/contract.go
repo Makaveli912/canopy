@@ -195,6 +195,12 @@ func (c *Contract) CheckCreateMarket(msg *MessageCreateMarket) *PluginCheckRespo
 	if len(msg.ResolverAddress) != 20 {
 		return &PluginCheckResponse{Error: ErrInvalidAddress()}
 	}
+	// Wave 1 — Security: prevent creator from also being the resolver.
+	// This is the simplest manipulation vector — a creator who resolves
+	// their own market can always pick the outcome that suits them.
+	if bytes.Equal(msg.CreatorAddress, msg.ResolverAddress) {
+		return &PluginCheckResponse{Error: ErrInvalidAddress()}
+	}
 	if msg.Question == "" {
 		return &PluginCheckResponse{Error: ErrInvalidAmount()}
 	}
