@@ -3,190 +3,402 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Praxis — Prediction Markets on Canopy</title>
+<title>PRAXIS — Prediction Markets on Canopy</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne+Mono&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 :root {
-  --bg:       #0a0c0f;
-  --surface:  #111418;
-  --border:   #1e2328;
-  --border2:  #2a3040;
-  --green:    #00ff88;
-  --green-dim:#00ff8818;
-  --cyan:     #00d4ff;
-  --cyan-dim: #00d4ff18;
-  --red:      #ff3b3b;
-  --red-dim:  #ff3b3b18;
-  --yellow:   #ffc940;
-  --muted:    #4a5568;
-  --text:     #e2e8f0;
-  --dim:      #718096;
-  --mono:     'Space Mono', monospace;
-  --sans:     'Inter', sans-serif;
+  --bg:        #060809;
+  --surface:   #0c0e12;
+  --surface2:  #111520;
+  --border:    #181e28;
+  --border2:   #222d40;
+  --green:     #00ff88;
+  --green-dim: #00ff8812;
+  --green-glow:#00ff8840;
+  --cyan:      #00d4ff;
+  --cyan-dim:  #00d4ff12;
+  --red:       #ff4055;
+  --red-dim:   #ff405512;
+  --yellow:    #ffc940;
+  --yellow-dim:#ffc94012;
+  --purple:    #c084fc;
+  --text:      #d8e4f0;
+  --dim:       #4a5870;
+  --muted:     #232d3d;
+  --mono:      'Syne Mono', monospace;
+  --sans:      'Syne', sans-serif;
 }
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;min-height:100vh}
-a{color:var(--cyan);text-decoration:none}
 
-/* ── Layout ── */
-.shell{display:flex;min-height:100vh}
-.sidebar{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0}
-.main{flex:1;overflow-y:auto;padding:28px 32px}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:14px;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* scanline overlay */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,.15) 2px,
+    rgba(0,0,0,.15) 4px
+  );
+  pointer-events:none;
+  z-index:0;
+}
+
+/* grid */
+body::after{
+  content:'';
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(0,255,136,.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,136,.02) 1px, transparent 1px);
+  background-size:48px 48px;
+  pointer-events:none;z-index:0;
+}
+
+.shell{display:flex;min-height:100vh;position:relative;z-index:1}
 
 /* ── Sidebar ── */
-.logo{padding:0 20px 24px;border-bottom:1px solid var(--border);margin-bottom:16px}
-.logo-mark{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--green);letter-spacing:-1px}
-.logo-sub{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:2px}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;color:var(--dim);font-size:13px;transition:all .15s;border-left:2px solid transparent}
+.sidebar{
+  width:200px;flex-shrink:0;
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  padding:0;
+  position:sticky;top:0;height:100vh;
+}
+
+.logo{
+  padding:22px 20px 20px;
+  border-bottom:1px solid var(--border);
+  position:relative;
+  overflow:hidden;
+}
+.logo::before{
+  content:'';
+  position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg, var(--green), transparent);
+}
+.logo-mark{
+  font-family:var(--mono);font-size:18px;font-weight:400;
+  color:var(--green);letter-spacing:2px;
+  text-shadow:0 0 20px var(--green-glow);
+}
+.logo-sub{
+  font-family:var(--sans);font-size:9px;font-weight:600;
+  color:var(--dim);letter-spacing:3px;text-transform:uppercase;
+  margin-top:3px;
+}
+
+.nav{padding:12px 0;flex:1}
+
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 20px;cursor:pointer;
+  color:var(--dim);font-size:12px;font-weight:600;
+  letter-spacing:.5px;
+  transition:all .15s;
+  border-left:2px solid transparent;
+  position:relative;
+}
 .nav-item:hover{color:var(--text);background:var(--green-dim)}
-.nav-item.active{color:var(--green);border-left-color:var(--green);background:var(--green-dim)}
-.nav-icon{font-size:15px;width:18px;text-align:center}
-.sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border)}
-.rpc-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
-.dot.live{background:var(--green);box-shadow:0 0 6px var(--green)}
-#heightBadge{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:4px}
+.nav-item.active{
+  color:var(--green);
+  border-left-color:var(--green);
+  background:var(--green-dim);
+}
+.nav-item.active .nav-icon{
+  filter:drop-shadow(0 0 4px var(--green));
+}
+.nav-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+
+.sidebar-footer{
+  padding:14px 20px;
+  border-top:1px solid var(--border);
+}
+.conn-row{display:flex;align-items:center;gap:7px;font-size:10px;font-family:var(--mono);color:var(--dim)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--dim);flex-shrink:0;transition:all .4s}
+.dot.live{background:var(--green);box-shadow:0 0 8px var(--green)}
+#heightBadge{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:5px;letter-spacing:.5px}
+
+/* ── Main ── */
+.main{flex:1;overflow-y:auto;padding:32px 36px;max-width:1000px}
 
 /* ── Page header ── */
-.page-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px}
-.page-title{font-size:22px;font-weight:600;letter-spacing:-.5px}
-.page-sub{font-size:13px;color:var(--dim);margin-top:4px}
+.page-head{margin-bottom:28px}
+.page-eyebrow{
+  font-family:var(--mono);font-size:9px;color:var(--green);
+  letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;
+  display:flex;align-items:center;gap:8px;
+}
+.page-eyebrow::before{content:'';width:20px;height:1px;background:var(--green)}
+.page-title{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1}
+.page-sub{font-size:12px;color:var(--dim);margin-top:6px;font-weight:400}
 
 /* ── Cards ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px}
-.card-title{font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px}
-
-/* ── Form elements ── */
-.field{margin-bottom:14px}
-.field label{display:block;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
-.field input,.field textarea,.field select{
-  width:100%;background:#0d1117;border:1px solid var(--border2);border-radius:6px;
-  padding:9px 12px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;
-  transition:border-color .15s
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:20px;
+  margin-bottom:14px;
+  position:relative;
+  overflow:hidden;
 }
-.field input:focus,.field textarea:focus{border-color:var(--green)}
-.field textarea{resize:vertical;min-height:72px}
-.field .hint{font-size:10px;color:var(--muted);margin-top:4px}
+.card::before{
+  content:'';
+  position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg, var(--green-dim), transparent 60%);
+}
+.card-title{
+  font-family:var(--mono);font-size:9px;color:var(--dim);
+  letter-spacing:2px;text-transform:uppercase;
+  margin-bottom:18px;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--border);
+}
+
+/* ── Form ── */
+.field{margin-bottom:13px}
+.field label{
+  display:block;font-family:var(--mono);font-size:9px;
+  color:var(--dim);letter-spacing:2px;text-transform:uppercase;
+  margin-bottom:6px;
+}
+.field input,.field textarea,.field select{
+  width:100%;background:var(--bg);
+  border:1px solid var(--border2);border-radius:5px;
+  padding:9px 12px;color:var(--text);
+  font-family:var(--mono);font-size:12px;
+  outline:none;transition:border-color .15s;
+}
+.field input:focus,.field textarea:focus{
+  border-color:var(--green);
+  box-shadow:0 0 0 2px var(--green-dim);
+}
+.field textarea{resize:vertical;min-height:68px}
+.hint{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:4px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 
 /* ── Buttons ── */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:6px;border:none;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:500;transition:all .15s}
-.btn-primary{background:var(--green);color:#000}
-.btn-primary:hover{background:#00e07a}
-.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--dim)}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:9px 16px;border-radius:5px;border:none;
+  cursor:pointer;font-family:var(--sans);font-size:12px;font-weight:700;
+  letter-spacing:.5px;transition:all .15s;
+}
+.btn-primary{
+  background:var(--green);color:#000;
+  box-shadow:0 0 16px var(--green-dim);
+}
+.btn-primary:hover{background:#00e07a;box-shadow:0 0 24px var(--green-glow)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+.btn-ghost{
+  background:transparent;border:1px solid var(--border2);
+  color:var(--dim);
+}
 .btn-ghost:hover{border-color:var(--green);color:var(--green)}
-.btn-danger{background:var(--red-dim);border:1px solid var(--red);color:var(--red)}
-.btn-sm{padding:6px 12px;font-size:12px}
-.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.btn-sm{padding:6px 11px;font-size:11px}
+.btn-row{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
 
-/* ── Outcome toggle ── */
-.outcome-toggle{display:flex;gap:8px;margin-bottom:14px}
-.outcome-btn{flex:1;padding:10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--dim);cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;text-align:center}
+/* ── Outcome toggles ── */
+.outcome-toggle{display:flex;gap:8px;margin-bottom:13px}
+.outcome-btn{
+  flex:1;padding:10px;border-radius:5px;
+  border:1px solid var(--border2);background:transparent;
+  color:var(--dim);cursor:pointer;font-family:var(--sans);
+  font-size:12px;font-weight:700;letter-spacing:1px;
+  transition:all .15s;text-align:center;
+}
 .outcome-btn.yes.active{background:var(--green-dim);border-color:var(--green);color:var(--green)}
 .outcome-btn.no.active{background:var(--red-dim);border-color:var(--red);color:var(--red)}
 
-/* ── Status badge ── */
-.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.5px}
-.badge-open{background:var(--green-dim);color:var(--green);border:1px solid #00ff8830}
-.badge-resolved{background:var(--cyan-dim);color:var(--cyan);border:1px solid #00d4ff30}
-.badge-cancelled{background:var(--red-dim);color:var(--red);border:1px solid #ff3b3b30}
+/* ── Badges ── */
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 8px;border-radius:20px;
+  font-family:var(--mono);font-size:9px;font-weight:400;letter-spacing:1px;
+}
+.badge-open{background:var(--green-dim);color:var(--green);border:1px solid #00ff8828}
+.badge-resolved{background:var(--cyan-dim);color:var(--cyan);border:1px solid #00d4ff28}
+.badge-closed{background:var(--red-dim);color:var(--red);border:1px solid #ff405528}
+.blink{animation:blink 1.2s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 
-/* ── Market cards ── */
-.markets-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
-.market-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;transition:border-color .15s}
-.market-card:hover{border-color:var(--border2)}
-.market-q{font-size:15px;font-weight:500;margin:10px 0 8px;line-height:1.4}
-.market-meta{font-size:11px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap}
-.market-pools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
-.pool-bar{border-radius:6px;padding:8px 12px;font-size:11px}
-.pool-yes{background:var(--green-dim);border:1px solid #00ff8830}
-.pool-no{background:var(--red-dim);border:1px solid #ff3b3b30}
-.pool-label{color:var(--muted);margin-bottom:2px}
-.pool-val{font-family:var(--mono);font-size:13px;font-weight:700}
+/* ── Markets grid ── */
+.markets-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+
+.market-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;padding:16px;
+  transition:border-color .15s,box-shadow .15s;
+  position:relative;overflow:hidden;
+}
+.market-card:hover{border-color:var(--border2);box-shadow:0 0 24px #00000040}
+.market-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg, var(--green-dim), transparent 50%);
+}
+.market-id{
+  font-family:var(--mono);font-size:9px;color:var(--dim);
+  letter-spacing:2px;margin-bottom:8px;
+}
+.market-q{font-size:14px;font-weight:700;line-height:1.4;margin:8px 0 10px}
+.market-meta{
+  font-family:var(--mono);font-size:9px;color:var(--dim);
+  display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;
+}
+.market-pools{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.pool-bar{border-radius:5px;padding:8px 10px}
+.pool-yes{background:var(--green-dim);border:1px solid #00ff8822}
+.pool-no{background:var(--red-dim);border:1px solid #ff405522}
+.pool-lbl{font-family:var(--mono);font-size:8px;color:var(--dim);margin-bottom:3px;letter-spacing:1px}
+.pool-val{font-family:var(--mono);font-size:13px;font-weight:400}
 .pool-yes .pool-val{color:var(--green)}
 .pool-no .pool-val{color:var(--red)}
+.market-footer{
+  display:flex;gap:8px;margin-top:12px;
+}
 
-/* ── Payload output ── */
+/* ── Payload box ── */
 .payload-box{display:none;margin-top:14px}
-.payload-box textarea{width:100%;background:#060809;border:1px solid var(--border2);border-radius:6px;padding:10px;color:#a8b8d8;font-family:var(--mono);font-size:11px;resize:vertical;min-height:160px;outline:none}
-.payload-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.payload-box textarea{
+  width:100%;background:var(--bg);
+  border:1px solid var(--border2);border-radius:5px;
+  padding:10px;color:#8899bb;font-family:var(--mono);font-size:10px;
+  resize:vertical;min-height:140px;outline:none;line-height:1.6;
+}
+.payload-lbl{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
 
 /* ── Toast ── */
-#toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:12px 18px;font-size:13px;color:var(--text);z-index:999;display:none;max-width:360px;box-shadow:0 8px 32px #00000060}
+#toast{
+  position:fixed;bottom:24px;right:24px;
+  background:var(--surface2);
+  border:1px solid var(--border2);border-radius:7px;
+  padding:11px 16px;font-family:var(--mono);font-size:11px;
+  color:var(--text);z-index:999;display:none;
+  max-width:360px;box-shadow:0 8px 40px #00000080;
+  letter-spacing:.3px;line-height:1.5;
+}
 #toast.err{border-color:var(--red);color:var(--red)}
 #toast.ok{border-color:var(--green);color:var(--green)}
 
-/* ── Signer panel ── */
-.key-status{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:6px;border:1px solid var(--border2);font-size:12px;font-family:var(--mono);margin-bottom:14px}
+/* ── Key status ── */
+.key-status{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 13px;border-radius:5px;
+  border:1px solid var(--border2);
+  font-family:var(--mono);font-size:11px;margin-bottom:14px;
+}
 .key-status.loaded{border-color:var(--green);background:var(--green-dim);color:var(--green)}
-.key-status.empty{color:var(--muted)}
+.key-status.empty{color:var(--dim)}
+
+/* ── Info cells ── */
+.info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.info-cell{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:14px}
+.info-lbl{font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.info-val{font-family:var(--mono);font-size:18px;font-weight:400;color:var(--text)}
+
+/* ── Balance display ── */
+.balance-big{font-family:var(--mono);font-size:32px;color:var(--green);margin:10px 0 2px;text-shadow:0 0 20px var(--green-glow)}
+.balance-unit{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:2px}
+.addr-mono{font-family:var(--mono);font-size:11px;color:var(--cyan);word-break:break-all;padding:9px 12px;background:var(--bg);border-radius:5px;border:1px solid var(--border2);margin-top:8px}
+
+/* ── Alert strips ── */
+.alert{padding:10px 14px;border-radius:5px;font-family:var(--mono);font-size:10px;margin-bottom:14px;line-height:1.5}
+.alert-green{background:var(--green-dim);border:1px solid #00ff8828;color:var(--green)}
+.alert-red{background:var(--red-dim);border:1px solid #ff405528;color:#ff7080}
+.alert-yellow{background:var(--yellow-dim);border:1px solid #ffc94028;color:var(--yellow)}
+
+/* ── Status bar ── */
+.stat-bar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.stat-chip{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:5px;padding:8px 14px;
+  font-family:var(--mono);font-size:10px;color:var(--dim);
+  display:flex;align-items:center;gap:6px;
+}
+.stat-chip span{color:var(--text);font-size:13px;font-weight:400}
 
 /* ── Pages ── */
 .page{display:none}
 .page.active{display:block}
 
 /* ── Loading ── */
-.loading{padding:32px;text-align:center;color:var(--muted);font-size:13px}
-.blink{animation:blink 1s step-end infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.loading{padding:40px;text-align:center;color:var(--dim);font-family:var(--mono);font-size:11px;letter-spacing:1px}
 
-/* ── Wallet info ── */
-.addr-display{font-family:var(--mono);font-size:12px;color:var(--cyan);word-break:break-all;padding:10px 14px;background:#0d1117;border-radius:6px;border:1px solid var(--border2)}
-.balance-display{font-family:var(--mono);font-size:28px;font-weight:700;color:var(--green);margin:12px 0 4px}
-.balance-unit{font-size:13px;color:var(--muted)}
+/* ── Divider ── */
+.divider{height:1px;background:var(--border);margin:18px 0}
 
-/* ── Node info ── */
-.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.info-cell{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px}
-.info-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
-.info-val{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--text)}
+/* ── Pending indicator ── */
+.pending-row{
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:10px;color:var(--yellow);
+  padding:8px 12px;background:var(--yellow-dim);border-radius:5px;
+  border:1px solid #ffc94028;margin-top:12px;display:none;
+}
 
 @media(max-width:640px){
-  .sidebar{width:56px}
+  .sidebar{width:50px}
   .logo-mark,.logo-sub,.nav-label,.sidebar-footer{display:none}
   .nav-item{padding:14px;justify-content:center}
   .main{padding:16px}
   .row2,.row3{grid-template-columns:1fr}
+  .markets-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
 <div class="shell">
+
   <!-- ── Sidebar ── -->
   <nav class="sidebar">
     <div class="logo">
       <div class="logo-mark">PRAXIS</div>
       <div class="logo-sub">Prediction Markets</div>
     </div>
-    <div class="nav-item active" onclick="showPage('markets',this)">
-      <span class="nav-icon">◈</span><span class="nav-label">Markets</span>
-    </div>
-    <div class="nav-item" onclick="showPage('create',this)">
-      <span class="nav-icon">＋</span><span class="nav-label">Create</span>
-    </div>
-    <div class="nav-item" onclick="showPage('predict',this)">
-      <span class="nav-icon">◎</span><span class="nav-label">Predict</span>
-    </div>
-    <div class="nav-item" onclick="showPage('resolve',this)">
-      <span class="nav-icon">✓</span><span class="nav-label">Resolve</span>
-    </div>
-    <div class="nav-item" onclick="showPage('claim',this)">
-      <span class="nav-icon">◆</span><span class="nav-label">Claim</span>
-    </div>
-    <div class="nav-item" onclick="showPage('wallet',this)">
-      <span class="nav-icon">◻</span><span class="nav-label">Wallet</span>
-    </div>
-    <div class="nav-item" onclick="showPage('signer',this)">
-      <span class="nav-icon">⚿</span><span class="nav-label">Signer</span>
-    </div>
-    <div class="nav-item" onclick="showPage('node',this)">
-      <span class="nav-icon">▣</span><span class="nav-label">Node</span>
+    <div class="nav">
+      <div class="nav-item active" onclick="showPage('markets',this)">
+        <span class="nav-icon">◈</span><span class="nav-label">Markets</span>
+      </div>
+      <div class="nav-item" onclick="showPage('create',this)">
+        <span class="nav-icon">＋</span><span class="nav-label">Create</span>
+      </div>
+      <div class="nav-item" onclick="showPage('predict',this)">
+        <span class="nav-icon">◎</span><span class="nav-label">Predict</span>
+      </div>
+      <div class="nav-item" onclick="showPage('resolve',this)">
+        <span class="nav-icon">✓</span><span class="nav-label">Resolve</span>
+      </div>
+      <div class="nav-item" onclick="showPage('claim',this)">
+        <span class="nav-icon">◆</span><span class="nav-label">Claim</span>
+      </div>
+      <div class="nav-item" onclick="showPage('wallet',this)">
+        <span class="nav-icon">◻</span><span class="nav-label">Wallet</span>
+      </div>
+      <div class="nav-item" onclick="showPage('signer',this)">
+        <span class="nav-icon">⚿</span><span class="nav-label">Signer</span>
+      </div>
+      <div class="nav-item" onclick="showPage('node',this)">
+        <span class="nav-icon">▣</span><span class="nav-label">Node</span>
+      </div>
     </div>
     <div class="sidebar-footer">
-      <div class="rpc-row">
+      <div class="conn-row">
         <div class="dot" id="rpcDot"></div>
         <span id="rpcStatus">offline</span>
       </div>
@@ -197,90 +409,98 @@ a{color:var(--cyan);text-decoration:none}
   <!-- ── Main ── -->
   <main class="main">
 
-    <!-- Markets -->
+    <!-- ══ MARKETS ══ -->
     <div class="page active" id="page-markets">
       <div class="page-head">
-        <div>
-          <div class="page-title">All Markets</div>
-          <div class="page-sub">Live prediction markets on this Canopy Nested Chain</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="loadMarkets()">↺ Refresh</button>
+        <div class="page-eyebrow">On-chain state</div>
+        <div class="page-title">All Markets</div>
+        <div class="page-sub">Live prediction markets — decoded directly from chain state</div>
       </div>
-      <div id="marketsList"><div class="loading"><span class="blink">▪▪▪</span> Loading...</div></div>
+      <div class="stat-bar">
+        <div class="stat-chip">Block <span id="sb_height">—</span></div>
+        <div class="stat-chip">Markets <span id="sb_count">—</span></div>
+        <div class="stat-chip" style="margin-left:auto">
+          <button class="btn btn-ghost btn-sm" onclick="loadMarkets()">↺ Refresh</button>
+        </div>
+      </div>
+      <div id="marketsList">
+        <div class="loading"><span class="blink">▪▪▪</span>&nbsp; loading chain state</div>
+      </div>
     </div>
 
-    <!-- Create Market -->
+    <!-- ══ CREATE MARKET ══ -->
     <div class="page" id="page-create">
       <div class="page-head">
-        <div>
-          <div class="page-title">Create Market</div>
-          <div class="page-sub">Open a new YES/NO prediction market</div>
-        </div>
+        <div class="page-eyebrow">New market</div>
+        <div class="page-title">Create Market</div>
+        <div class="page-sub">Open a YES/NO prediction market on-chain</div>
       </div>
       <div class="card">
-        <div class="card-title">Market Parameters</div>
+        <div class="card-title">// market_parameters</div>
         <div class="field">
           <label>Question</label>
-          <input id="c_question" type="text" placeholder="Will BTC hit $100k before July?"/>
+          <input id="c_question" type="text" placeholder="Will BTC reach $200k before 2026?"/>
         </div>
         <div class="field">
-          <label>Description <span style="color:var(--muted)">(optional)</span></label>
-          <textarea id="c_desc" placeholder="Additional context…"></textarea>
+          <label>Description <span style="opacity:.4">(optional)</span></label>
+          <textarea id="c_desc" placeholder="Resolution criteria, data sources…"></textarea>
         </div>
         <div class="row2">
           <div class="field">
-            <label>Creator Address <span style="color:var(--muted)">(40 hex chars)</span></label>
-            <input id="c_creator" type="text" placeholder="e7c7dad131a03f7ea0cc09a637ad096eb3495f77"/>
+            <label>Creator Address</label>
+            <input id="c_creator" type="text" placeholder="20-byte address (40 hex)"/>
           </div>
           <div class="field">
-            <label>Resolver Address <span style="color:var(--muted)">(40 hex chars)</span></label>
-            <input id="c_resolver" type="text" placeholder="e7c7dad131a03f7ea0cc09a637ad096eb3495f77"/>
+            <label>Resolver Address <span style="opacity:.4">(must differ)</span></label>
+            <input id="c_resolver" type="text" placeholder="different address"/>
           </div>
         </div>
         <div class="row2">
           <div class="field">
             <label>Resolution Height</label>
-            <input id="c_resHeight" type="number" placeholder="2000"/>
-            <div class="hint">Must be greater than current height</div>
+            <input id="c_resHeight" type="number" placeholder="auto-set"/>
+            <div class="hint">min +100 blocks · max +1,000,000 blocks from now</div>
           </div>
           <div class="field">
-            <label>Stake Amount (μPRX)</label>
+            <label>Stake Bond (μPRX)</label>
             <input id="c_stake" type="number" value="500000"/>
-            <div class="hint">Min 100,000 μPRX</div>
+            <div class="hint">escrowed · returned on resolution</div>
           </div>
         </div>
-        <div class="field">
+        <div class="field" style="max-width:220px">
           <label>Fee (μPRX)</label>
           <input id="c_fee" type="number" value="10000"/>
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="signAndSubmitCreateMarket()">⚡ Sign &amp; Submit</button>
+          <button class="btn btn-primary" id="btn_create" onclick="signAndSubmitCreateMarket()">⚡ Sign &amp; Submit</button>
           <button class="btn btn-ghost" onclick="buildCreateMarket()">Build Payload Only</button>
         </div>
+        <div class="pending-row" id="pend_create"><span class="blink">▪▪▪</span> broadcasting to mempool…</div>
         <div class="payload-box" id="c_output">
-          <div class="payload-label">Unsigned Payload (copy to sign manually)</div>
+          <div class="payload-lbl">// unsigned_payload</div>
           <textarea id="c_payload" readonly></textarea>
         </div>
       </div>
     </div>
 
-    <!-- Submit Prediction -->
+    <!-- ══ PREDICT ══ -->
     <div class="page" id="page-predict">
       <div class="page-head">
-        <div>
-          <div class="page-title">Submit Prediction</div>
-          <div class="page-sub">Stake on a YES or NO outcome</div>
-        </div>
+        <div class="page-eyebrow">Submit prediction</div>
+        <div class="page-title">Stake a Position</div>
+        <div class="page-sub">Lock tokens on a YES or NO outcome</div>
       </div>
       <div class="card">
-        <div class="card-title">Prediction Parameters</div>
-        <div class="field">
-          <label>Market ID</label>
-          <input id="p_marketId" type="number" placeholder="1"/>
-        </div>
-        <div class="field">
-          <label>Forecaster Address</label>
-          <input id="p_forecaster" type="text" placeholder="40 hex chars"/>
+        <div class="card-title">// prediction_parameters</div>
+        <div class="row2">
+          <div class="field">
+            <label>Market ID</label>
+            <input id="p_marketId" type="number" placeholder="1"/>
+          </div>
+          <div class="field">
+            <label>Forecaster Address</label>
+            <input id="p_forecaster" type="text" placeholder="40 hex chars"/>
+          </div>
         </div>
         <div class="field">
           <label>Outcome</label>
@@ -300,26 +520,26 @@ a{color:var(--cyan);text-decoration:none}
           </div>
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="signAndSubmitPrediction()">⚡ Sign &amp; Submit</button>
+          <button class="btn btn-primary" id="btn_predict" onclick="signAndSubmitPrediction()">⚡ Sign &amp; Submit</button>
           <button class="btn btn-ghost" onclick="buildSubmitPrediction()">Build Payload Only</button>
         </div>
+        <div class="pending-row" id="pend_predict"><span class="blink">▪▪▪</span> broadcasting…</div>
         <div class="payload-box" id="p_output">
-          <div class="payload-label">Unsigned Payload</div>
+          <div class="payload-lbl">// unsigned_payload</div>
           <textarea id="p_payload" readonly></textarea>
         </div>
       </div>
     </div>
 
-    <!-- Resolve Market -->
+    <!-- ══ RESOLVE ══ -->
     <div class="page" id="page-resolve">
       <div class="page-head">
-        <div>
-          <div class="page-title">Resolve Market</div>
-          <div class="page-sub">Finalise a market with the winning outcome</div>
-        </div>
+        <div class="page-eyebrow">Finalise</div>
+        <div class="page-title">Resolve Market</div>
+        <div class="page-sub">Declare the winning outcome — only callable at or after resolution height</div>
       </div>
       <div class="card">
-        <div class="card-title">Resolution Parameters</div>
+        <div class="card-title">// resolution_parameters</div>
         <div class="row2">
           <div class="field">
             <label>Market ID</label>
@@ -337,31 +557,31 @@ a{color:var(--cyan);text-decoration:none}
             <div class="outcome-btn no" id="rbtn_no" onclick="setResolveOutcome(2)">NO</div>
           </div>
         </div>
-        <div class="field">
+        <div class="field" style="max-width:220px">
           <label>Fee (μPRX)</label>
           <input id="r_fee" type="number" value="10000"/>
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="signAndSubmitResolve()">⚡ Sign &amp; Submit</button>
+          <button class="btn btn-primary" id="btn_resolve" onclick="signAndSubmitResolve()">⚡ Sign &amp; Submit</button>
           <button class="btn btn-ghost" onclick="buildResolveMarket()">Build Payload Only</button>
         </div>
+        <div class="pending-row" id="pend_resolve"><span class="blink">▪▪▪</span> broadcasting…</div>
         <div class="payload-box" id="r_output">
-          <div class="payload-label">Unsigned Payload</div>
+          <div class="payload-lbl">// unsigned_payload</div>
           <textarea id="r_payload" readonly></textarea>
         </div>
       </div>
     </div>
 
-    <!-- Claim Winnings -->
+    <!-- ══ CLAIM ══ -->
     <div class="page" id="page-claim">
       <div class="page-head">
-        <div>
-          <div class="page-title">Claim Winnings</div>
-          <div class="page-sub">Collect your proportional payout from a resolved market</div>
-        </div>
+        <div class="page-eyebrow">Collect payout</div>
+        <div class="page-title">Claim Winnings</div>
+        <div class="page-sub">Proportional payout from the resolved losing pool (after 2.5% protocol fee)</div>
       </div>
       <div class="card">
-        <div class="card-title">Claim Parameters</div>
+        <div class="card-title">// claim_parameters</div>
         <div class="row2">
           <div class="field">
             <label>Market ID</label>
@@ -372,51 +592,51 @@ a{color:var(--cyan);text-decoration:none}
             <input id="cl_addr" type="text" placeholder="40 hex chars"/>
           </div>
         </div>
-        <div class="field">
+        <div class="field" style="max-width:220px">
           <label>Fee (μPRX)</label>
           <input id="cl_fee" type="number" value="10000"/>
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="signAndSubmitClaim()">⚡ Sign &amp; Submit</button>
+          <button class="btn btn-primary" id="btn_claim" onclick="signAndSubmitClaim()">⚡ Sign &amp; Submit</button>
           <button class="btn btn-ghost" onclick="buildClaim()">Build Payload Only</button>
         </div>
+        <div class="pending-row" id="pend_claim"><span class="blink">▪▪▪</span> broadcasting…</div>
         <div class="payload-box" id="cl_output">
-          <div class="payload-label">Unsigned Payload</div>
+          <div class="payload-lbl">// unsigned_payload</div>
           <textarea id="cl_payload" readonly></textarea>
         </div>
       </div>
     </div>
 
-    <!-- Wallet -->
+    <!-- ══ WALLET ══ -->
     <div class="page" id="page-wallet">
       <div class="page-head">
-        <div>
-          <div class="page-title">Wallet</div>
-          <div class="page-sub">Query any account on this chain</div>
-        </div>
+        <div class="page-eyebrow">Account</div>
+        <div class="page-title">Wallet</div>
+        <div class="page-sub">Query balances and send tokens</div>
       </div>
+
       <div class="card">
-        <div class="card-title">Account Lookup</div>
+        <div class="card-title">// account_lookup</div>
         <div class="field">
-          <label>Address (40 hex chars)</label>
-          <input id="w_addr" type="text" placeholder="e7c7dad131a03f7ea0cc09a637ad096eb3495f77"/>
+          <label>Address (40 hex)</label>
+          <input id="w_addr" type="text" placeholder="e7c7dad1…"/>
         </div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="queryAccount()">Query</button>
         </div>
-        <div id="w_result" style="margin-top:16px;display:none">
-          <div class="balance-display" id="w_balance">0</div>
+        <div id="w_result" style="display:none;margin-top:16px">
+          <div class="balance-big" id="w_balance">0</div>
           <div class="balance-unit">μPRX liquid</div>
-          <div style="margin-top:8px;font-size:11px;color:var(--muted)">
-            Staked: <span id="w_staked" style="font-family:var(--mono);color:var(--text)">0</span> μPRX
+          <div style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:6px">
+            STAKED&nbsp;&nbsp;<span id="w_staked" style="color:var(--text)">0</span> μPRX
           </div>
-          <div class="addr-display" style="margin-top:12px" id="w_addrDisplay"></div>
+          <div class="addr-mono" id="w_addrDisplay"></div>
         </div>
       </div>
 
-      <!-- Send tokens -->
       <div class="card">
-        <div class="card-title">Send Tokens</div>
+        <div class="card-title">// send_tokens</div>
         <div class="row2">
           <div class="field">
             <label>From Address</label>
@@ -438,80 +658,105 @@ a{color:var(--cyan);text-decoration:none}
           </div>
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="signAndSubmitSend()">⚡ Sign &amp; Submit</button>
+          <button class="btn btn-primary" id="btn_send" onclick="signAndSubmitSend()">⚡ Sign &amp; Submit</button>
           <button class="btn btn-ghost" onclick="buildSend()">Build Payload Only</button>
         </div>
+        <div class="pending-row" id="pend_send"><span class="blink">▪▪▪</span> broadcasting…</div>
         <div class="payload-box" id="s_output">
-          <div class="payload-label">Unsigned Payload</div>
+          <div class="payload-lbl">// unsigned_payload</div>
           <textarea id="s_payload" readonly></textarea>
         </div>
       </div>
     </div>
 
-    <!-- Signer -->
+    <!-- ══ SIGNER ══ -->
     <div class="page" id="page-signer">
       <div class="page-head">
-        <div>
-          <div class="page-title">Signer</div>
-          <div class="page-sub">Load a BLS12-381 private key to sign transactions</div>
-        </div>
+        <div class="page-eyebrow">BLS12-381</div>
+        <div class="page-title">Signer</div>
+        <div class="page-sub">Load a private key — memory only, never stored or transmitted</div>
       </div>
       <div class="card">
-        <div class="card-title">Private Key</div>
+        <div class="card-title">// private_key</div>
         <div class="key-status empty" id="keyStatus">No key loaded — transactions cannot be signed</div>
         <div class="field">
-          <label>Private Key (64 hex chars)</label>
+          <label>Private Key (64 hex)</label>
           <input id="sk_input" type="password" placeholder="14f43ca8…"/>
-          <div class="hint">⚠ Never enter keys on untrusted sites. This key is held in memory only and never stored.</div>
+          <div class="hint">⚠ Never enter keys on untrusted sites. Held in RAM only — clears on page reload.</div>
         </div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="loadKey()">Load Key</button>
           <button class="btn btn-ghost" onclick="clearKey()">Clear</button>
         </div>
-        <div id="sk_pubkey" style="margin-top:14px;display:none">
+        <div id="sk_derived" style="display:none;margin-top:16px">
           <div class="field">
-            <label>Derived Public Key</label>
-            <div class="addr-display" id="sk_pubkeyVal"></div>
+            <label>Derived Public Key (48 bytes · G1)</label>
+            <div class="addr-mono" id="sk_pubkeyVal" style="font-size:9px;word-break:break-all"></div>
           </div>
-          <div class="field">
-            <label>Derived Address (use this in transaction fields)</label>
-            <div class="addr-display" id="sk_addrVal"></div>
+          <div class="field" style="margin-top:12px">
+            <label>Derived Address — use this in all transaction fields</label>
+            <div class="addr-mono" id="sk_addrVal"></div>
           </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">// how_signing_works</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--dim);line-height:1.8">
+          1. sign bytes = proto.Marshal(Transaction{...fields, signature:nil})<br>
+          2. time field = Date.now() × 1000 (microseconds) — computed ONCE<br>
+          3. same txTime value used in sign bytes AND tx body JSON<br>
+          4. BLS12-381 G2 long signature (96 bytes) over sign bytes<br>
+          5. address = SHA-256(pubKey).slice(0,20) — first 20 bytes<br>
+          6. POST to /v1/tx (singular) with Content-Type: application/json
         </div>
       </div>
     </div>
 
-    <!-- Node -->
+    <!-- ══ NODE ══ -->
     <div class="page" id="page-node">
       <div class="page-head">
-        <div>
-          <div class="page-title">Node Info</div>
-          <div class="page-sub">Connection settings and chain status</div>
-        </div>
+        <div class="page-eyebrow">Connection</div>
+        <div class="page-title">Node</div>
+        <div class="page-sub">RPC settings and chain status</div>
       </div>
       <div class="card">
-        <div class="card-title">RPC Connection</div>
+        <div class="card-title">// rpc_connection</div>
         <div class="field">
           <label>RPC Host</label>
           <input id="ni_host" type="text" value="localhost"/>
-          <div class="hint">Node public RPC will be http://host:50002 — admin RPC on :50003</div>
+          <div class="hint">Public RPC → http://host:50002 &nbsp;·&nbsp; Admin RPC → http://host:50003 (local only)</div>
         </div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="applyHost()">Apply &amp; Connect</button>
         </div>
       </div>
       <div class="card">
-        <div class="card-title">Chain Status</div>
+        <div class="card-title">// chain_status</div>
         <div class="info-grid">
           <div class="info-cell">
-            <div class="info-label">Height</div>
+            <div class="info-lbl">Height</div>
             <div class="info-val" id="ni_height">—</div>
           </div>
           <div class="info-cell">
-            <div class="info-label">RPC</div>
-            <div class="info-val" id="ni_rpc" style="font-size:11px;word-break:break-all">—</div>
+            <div class="info-lbl">Status</div>
+            <div class="info-val" id="ni_status" style="font-size:12px">—</div>
+          </div>
+          <div class="info-cell" style="grid-column:1/-1">
+            <div class="info-lbl">RPC Endpoint</div>
+            <div class="info-val" id="ni_rpc" style="font-size:10px;word-break:break-all">—</div>
           </div>
         </div>
+      </div>
+      <div class="card">
+        <div class="card-title">// failed_transactions</div>
+        <div class="field">
+          <label>Check Address</label>
+          <input id="ft_addr" type="text" placeholder="40 hex chars"/>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" onclick="checkFailedTxs()">Check Failed Txs</button>
+        </div>
+        <div id="ft_result" style="margin-top:12px;display:none"></div>
       </div>
     </div>
 
@@ -520,49 +765,62 @@ a{color:var(--cyan);text-decoration:none}
 
 <div id="toast"></div>
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     BLS12-381 via dynamic import from esm.sh
-     importmap is unreliable on Android/mobile browsers — dynamic import works everywhere
-════════════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════
+     PRAXIS FRONTEND SCRIPT
+     All signing, encoding, and RPC logic — single module, no bundler
+     Signing spec: rpc_test.ts + canopy_builders_guide_userland_V2
+═══════════════════════════════════════════════════════════════════ -->
 <script type="module">
-// Dynamic import — no importmap needed, works on all browsers including Android
-let bls12_381;
-try {
-  const mod = await import('https://esm.sh/@noble/curves@1.4.2/bls12-381');
-  bls12_381 = mod.bls12_381;
-} catch(e) {
-  // Fallback CDN
-  try {
-    const mod = await import('https://cdn.skypack.dev/@noble/curves@1.4.2/bls12-381');
-    bls12_381 = mod.bls12_381;
-  } catch(e2) {
-    console.error('Failed to load BLS library:', e2);
-    window.toast('Failed to load BLS library — check internet connection', true);
-  }
-}
 
-// ── Config ────────────────────────────────────────────────────────────
-// RPC host is persisted in localStorage (host only, never private keys)
+// ── BLS12-381 — dynamic import, works on all browsers including Android/Termux
+let bls12_381 = null;
+(async () => {
+  const cdns = [
+    'https://esm.sh/@noble/curves@1.4.2/bls12-381',
+    'https://cdn.skypack.dev/@noble/curves@1.4.2/bls12-381',
+  ];
+  for (const url of cdns) {
+    try {
+      const mod = await import(url);
+      bls12_381 = mod.bls12_381;
+      console.log('BLS loaded from:', url);
+      break;
+    } catch(e) { console.warn('BLS CDN failed:', url, e); }
+  }
+  if (!bls12_381) toast('BLS library failed to load — check internet connection', true);
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
 function getRPCHost() { return localStorage.getItem('praxis_rpc_host') || 'localhost'; }
 function getRPC()     { return `http://${getRPCHost()}:50002`; }
 function getAdmin()   { return `http://${getRPCHost()}:50003`; }
 
-// ── State ─────────────────────────────────────────────────────────────
-let currentHeight  = 0;
-let selectedOutcome = 1;  // for submit_prediction
-let resolveOutcome  = 1;  // for resolve_market
-let signerPrivKey  = null; // Uint8Array — memory only, never persisted
-let signerPubKey   = null; // Uint8Array
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let currentHeight   = 0;
+let selectedOutcome = 1; // submit_prediction
+let resolveOutcome  = 1; // resolve_market
+let signerPrivKey   = null; // Uint8Array — RAM only
+let signerPubKey    = null; // Uint8Array
+let signerAddress   = null; // hex string
 
-// ══════════════════════════════════════════════════════════════════════
-// PROTOBUF HAND-ENCODING
-// Implements the minimal subset needed to build Transaction + inner msgs
-// Wire types: 0 = varint, 2 = length-delimited
-// ══════════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────────────────
+// PROTOBUF HAND-ENCODER
+// Implements the minimal wire-format subset to build Transaction + inner msgs.
+// Spec: canopy_builders_guide_userland_V2 section 12 + rpc_test.ts getSignBytes()
+//
+// FIX: Empty string fields are OMITTED (proto3 default).
+//      Empty bytes fields are OMITTED.
+//      field 3 (signature) is always OMITTED for sign bytes.
+//      field 7 (memo) is OMITTED when empty — Go proto3 never emits empty strings.
+// ─────────────────────────────────────────────────────────────────────────────
 
 function encodeVarint(value) {
   const out = [];
-  let v = BigInt(value);
+  let v = typeof value === 'bigint' ? value : BigInt(value);
   while (v > 127n) {
     out.push(Number((v & 0x7fn) | 0x80n));
     v >>= 7n;
@@ -573,81 +831,90 @@ function encodeVarint(value) {
 
 function concat(...arrays) {
   const total = arrays.reduce((s, a) => s + a.length, 0);
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const a of arrays) { out.set(a, offset); offset += a.length; }
+  const out   = new Uint8Array(total);
+  let off = 0;
+  for (const a of arrays) { out.set(a, off); off += a.length; }
   return out;
 }
 
-// field tag: (field_number << 3) | wire_type
 function tag(fieldNum, wireType) {
   return encodeVarint((BigInt(fieldNum) << 3n) | BigInt(wireType));
 }
 
-// varint field — omitted when value is 0 (proto3 default omission)
+// varint field — proto3: omit when value is 0
 function varintField(fieldNum, val) {
-  const v = BigInt(val);
+  const v = typeof val === 'bigint' ? val : BigInt(val);
   if (v === 0n) return new Uint8Array(0);
   return concat(tag(fieldNum, 0), encodeVarint(v));
 }
 
-// length-delimited field for raw bytes
+// bytes field — omit when empty
 function bytesField(fieldNum, bytes) {
   if (!bytes || bytes.length === 0) return new Uint8Array(0);
   return concat(tag(fieldNum, 2), encodeVarint(bytes.length), bytes);
 }
 
-// length-delimited field for a UTF-8 string
+// string field — proto3: OMIT when empty string
 function stringField(fieldNum, str) {
-  if (!str) return new Uint8Array(0);
-  const encoded = new TextEncoder().encode(str);
-  return concat(tag(fieldNum, 2), encodeVarint(encoded.length), encoded);
+  if (!str || str.length === 0) return new Uint8Array(0);
+  const enc = new TextEncoder().encode(str);
+  return concat(tag(fieldNum, 2), encodeVarint(enc.length), enc);
 }
 
-// length-delimited field for an already-encoded embedded message
+// embedded message field
 function embedField(fieldNum, msgBytes) {
   if (!msgBytes || msgBytes.length === 0) return new Uint8Array(0);
   return concat(tag(fieldNum, 2), encodeVarint(msgBytes.length), msgBytes);
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
 
 function hexToBytes(hex) {
-  if (!hex || hex.length % 2 !== 0) throw new Error(`Invalid hex: "${hex}"`);
+  hex = hex.trim().toLowerCase();
+  if (hex.length % 2 !== 0) throw new Error(`Odd-length hex: "${hex}"`);
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < out.length; i++)
     out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   return out;
 }
 
-function bytesToHex(bytes) {
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+function bytesToHex(b) {
+  return Array.from(b).map(x => x.toString(16).padStart(2, '0')).join('');
 }
 
-function bytesToB64(bytes) {
+function bytesToB64(b) {
   let s = '';
-  for (const b of bytes) s += String.fromCharCode(b);
+  for (const byte of b) s += String.fromCharCode(byte);
   return btoa(s);
 }
 
-function hexToB64(hex) {
-  return hex ? bytesToB64(hexToBytes(hex)) : '';
+function fmtAmount(n) {
+  if (!n && n !== 0) return '—';
+  const num = Number(n);
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + 'M';
+  if (num >= 1_000)     return (num / 1_000).toFixed(1) + 'k';
+  return String(num);
 }
 
-// ── google.protobuf.Any encoding ─────────────────────────────────────
-// Any { string type_url = 1; bytes value = 2; }
-// type_url MUST be "type.googleapis.com/types.MessageXxx"
-function encodeAny(typeUrl, innerMsgBytes) {
+// ─────────────────────────────────────────────────────────────────────────────
+// google.protobuf.Any
+// { string type_url = 1; bytes value = 2; }
+// ─────────────────────────────────────────────────────────────────────────────
+function encodeAny(typeUrl, innerBytes) {
   return concat(
     stringField(1, typeUrl),
-    bytesField(2, innerMsgBytes),
+    bytesField(2, innerBytes),
   );
 }
 
-// ── Inner message encoders ────────────────────────────────────────────
-// Field numbers and types MUST match tx.proto exactly.
+// ─────────────────────────────────────────────────────────────────────────────
+// INNER MESSAGE ENCODERS — field numbers MUST match tx.proto exactly
+// ─────────────────────────────────────────────────────────────────────────────
 
-function encodeMessageSend(from, to, amount) {
+// MessageSend: bytes from_address=1; bytes to_address=2; uint64 amount=3
+function encodeSend(from, to, amount) {
   return concat(
     bytesField(1, hexToBytes(from)),
     bytesField(2, hexToBytes(to)),
@@ -655,19 +922,20 @@ function encodeMessageSend(from, to, amount) {
   );
 }
 
-// MessageCreateMarket fields 1-6
+// MessageCreateMarket: bytes creator=1; string question=2; string description=3;
+//   bytes resolver=4; uint64 resolution_height=5; uint64 stake_amount=6
 function encodeCreateMarket({ creatorAddress, question, description, resolverAddress, resolutionHeight, stakeAmount }) {
   return concat(
     bytesField(1, hexToBytes(creatorAddress)),
     stringField(2, question),
-    stringField(3, description || ''),
+    description ? stringField(3, description) : new Uint8Array(0),
     bytesField(4, hexToBytes(resolverAddress)),
     varintField(5, resolutionHeight),
     varintField(6, stakeAmount),
   );
 }
 
-// MessageSubmitPrediction fields 1-4
+// MessageSubmitPrediction: bytes forecaster=1; uint64 market_id=2; uint32 outcome=3; uint64 amount=4
 function encodeSubmitPrediction({ forecasterAddress, marketId, outcome, amount }) {
   return concat(
     bytesField(1, hexToBytes(forecasterAddress)),
@@ -677,7 +945,7 @@ function encodeSubmitPrediction({ forecasterAddress, marketId, outcome, amount }
   );
 }
 
-// MessageResolveMarket fields 1-3
+// MessageResolveMarket: bytes resolver=1; uint64 market_id=2; uint32 winning_outcome=3
 function encodeResolveMarket({ resolverAddress, marketId, winningOutcome }) {
   return concat(
     bytesField(1, hexToBytes(resolverAddress)),
@@ -686,7 +954,7 @@ function encodeResolveMarket({ resolverAddress, marketId, winningOutcome }) {
   );
 }
 
-// MessageClaimWinnings fields 1-2
+// MessageClaimWinnings: bytes claimer=1; uint64 market_id=2
 function encodeClaimWinnings({ claimerAddress, marketId }) {
   return concat(
     bytesField(1, hexToBytes(claimerAddress)),
@@ -694,151 +962,166 @@ function encodeClaimWinnings({ claimerAddress, marketId }) {
   );
 }
 
-// ── Transaction encoder for sign bytes ───────────────────────────────
-// Transaction proto fields (from tx.proto):
-//   1 message_type  (string)
-//   2 msg           (Any — embedded)
-//   3 signature     (OMITTED when computing sign bytes)
-//   4 created_height(uint64)
-//   5 time          (uint64)
-//   6 fee           (uint64)
-//   7 memo          (string)
-//   8 network_id    (uint64)
-//   9 chain_id      (uint64)
-function encodeTxForSigning(messageType, typeUrl, innerMsgBytes, meta) {
-  const anyBytes = encodeAny(typeUrl, innerMsgBytes);
-  const time = meta.time || BigInt(Date.now() * 1000); // microseconds — matches rpc_test.ts
-  const memo = meta.memo || '';
-  // CRITICAL: Go proto omits empty strings entirely (no field emitted for empty memo).
-  // Including an empty memo field produces different bytes and breaks signature verification.
+// ─────────────────────────────────────────────────────────────────────────────
+// TRANSACTION SIGN BYTES ENCODER
+//
+// Transaction proto fields (tx.proto):
+//   1 message_type   string
+//   2 msg            Any (embedded)
+//   3 signature      OMIT — this is the sign-bytes rule
+//   4 created_height uint64
+//   5 time           uint64  ← microseconds, NOT ms, NOT ns
+//   6 fee            uint64
+//   7 memo           string  ← OMIT when empty (proto3 default)
+//   8 network_id     uint64
+//   9 chain_id       uint64
+//
+// FIX: txTime MUST be computed ONCE and reused in both sign bytes AND body JSON.
+//      Two calls to Date.now() differ by milliseconds — causes sig verification fail.
+// ─────────────────────────────────────────────────────────────────────────────
+function encodeTxForSigning(msgType, typeUrl, innerBytes, { txTime, fee, createdHeight, memo, networkId, chainId }) {
+  const anyBytes = encodeAny(typeUrl, innerBytes);
   return concat(
-    stringField(1, messageType),
+    stringField(1, msgType),
     embedField(2, anyBytes),
-    // field 3 (signature) intentionally omitted — sign-bytes rule
-    varintField(4, meta.createdHeight || currentHeight),
-    varintField(5, time),
-    varintField(6, meta.fee || 10000),
-    memo ? stringField(7, memo) : new Uint8Array(0), // omit field 7 if empty
-    varintField(8, meta.networkId || 1),
-    varintField(9, meta.chainId   || 1),
+    // field 3 — INTENTIONALLY OMITTED (sign bytes rule)
+    varintField(4, createdHeight || currentHeight),
+    varintField(5, txTime),          // microseconds
+    varintField(6, fee || 10000),
+    memo ? stringField(7, memo) : new Uint8Array(0), // omit if empty
+    varintField(8, networkId || 1),
+    varintField(9, chainId   || 1),
   );
 }
 
-// ── BLS12-381 signing ─────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// BLS12-381 SIGNING
+//
+// FIX (rpc_test.ts line 201-208): Canopy uses G2 long signatures (96 bytes).
+//   bls12_381.sign() uses G1 signatures (48 bytes) — WRONG for Canopy.
+//   Must use bls12_381.G2.hashToCurve then multiply — or use @noble's
+//   signaturePoint approach that matches kyber's bdn.Scheme.
+//
+// @noble/curves@1.4.2 bls12_381.sign() actually IS G2 by default when
+//   the input is raw bytes (it hashes to G2 and signs with G1 key).
+//   The resulting signature is 96 bytes — this matches Canopy.
+//   The DST "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_" is the default.
+// ─────────────────────────────────────────────────────────────────────────────
 async function blsSign(msgBytes) {
-  if (!signerPrivKey) throw new Error('No private key loaded — go to Signer panel first');
-  if (!bls12_381) throw new Error('BLS library not loaded — check internet connection');
-  // bls12_381.sign() uses G2 signatures (96 bytes) matching Canopy kyber bdn.Scheme
-  // DST: BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_ (standard, matches Canopy)
+  if (!signerPrivKey) throw new Error('No key loaded — go to Signer panel');
+  if (!bls12_381)     throw new Error('BLS library not loaded — check internet');
+  // sign() → G2 signature (96 bytes), G1 public key (48 bytes) — matches Canopy/kyber
   return await bls12_381.sign(msgBytes, signerPrivKey);
 }
 
-// ── Build the JSON body for POST /v1/tx ──────────────────────────────
-// The Canopy RPC deserialises this with protojson.
-// Field names follow the @gotags in tx.proto:
-//   messageType, createdHeight, networkID, chainID, publicKey
-// The msg field must be the base64 of the proto-binary Any encoding.
-// This matches what protojson produces for google.protobuf.Any when
-// the inner type is NOT registered in the server's type registry —
-// the fallback is { "@type": "...", "value": "<base64 inner bytes>" }.
-async function buildSignedTx(messageType, typeUrl, innerMsgBytes, meta) {
-  // CRITICAL: compute time ONCE and use the same value for both sign bytes and tx body.
-  // If Date.now() is called twice, the values differ by milliseconds and the node's
-  // signature verification will recompute sign bytes with the tx body time and fail.
+// ─────────────────────────────────────────────────────────────────────────────
+// BUILD SIGNED TX BODY
+//
+// Two tx body formats per builder guide section 11:
+//
+// SEND (core registered type):
+//   { type, msg: { "@type":..., value:<base64 inner> }, fee, time, ... }
+//
+// PLUGIN TYPES (create_market, submit_prediction, resolve_market, claim_winnings):
+//   { type, msgTypeUrl, msgBytes:<hex inner>, fee, time, ... }
+//
+// CRITICAL: signature fields are hex strings (publicKey, signature) per guide.
+// ─────────────────────────────────────────────────────────────────────────────
+async function buildSignedTx(msgType, typeUrl, innerBytes, meta) {
+  // FIX: compute txTime ONCE — used identically in sign bytes AND body JSON
   const txTime = BigInt(Date.now() * 1000); // microseconds
-  const metaWithTime = { ...meta, time: txTime };
+  const params = {
+    txTime,
+    fee:           meta.fee || 10000,
+    createdHeight: meta.createdHeight || currentHeight,
+    memo:          meta.memo || '',
+    networkId:     meta.networkId || 1,
+    chainId:       meta.chainId   || 1,
+  };
 
-  const txBytes = encodeTxForSigning(messageType, typeUrl, innerMsgBytes, metaWithTime);
-  const sig     = await blsSign(txBytes);
+  const signBytes = encodeTxForSigning(msgType, typeUrl, innerBytes, params);
+  const sig       = await blsSign(signBytes);
 
   const sigObj = {
-    publicKey: bytesToHex(signerPubKey),
-    signature: bytesToHex(sig),
+    publicKey: bytesToHex(signerPubKey), // hex, 48 bytes
+    signature: bytesToHex(sig),          // hex, 96 bytes
   };
+
   const base = {
-    type:          messageType,
     signature:     sigObj,
-    createdHeight: metaWithTime.createdHeight || currentHeight,
-    time:          Number(txTime),
-    fee:           metaWithTime.fee || 10000,
+    createdHeight: params.createdHeight,
+    time:          Number(txTime),       // same value as sign bytes
+    fee:           params.fee,
     memo:          '',
-    networkID:     metaWithTime.networkId || 1,
-    chainID:       metaWithTime.chainId   || 1,
+    networkID:     params.networkId,
+    chainID:       params.chainId,
   };
-  if (messageType === 'send') {
-    return { ...base, msg: { '@type': typeUrl, value: bytesToB64(innerMsgBytes) } };
+
+  // FIX: send uses { msg: { "@type", value } } format
+  // All plugin types use { msgTypeUrl, msgBytes } format
+  if (msgType === 'send') {
+    return { type: msgType, ...base, msg: { '@type': typeUrl, value: bytesToB64(innerBytes) } };
   }
-  return { ...base, msgTypeUrl: typeUrl, msgBytes: bytesToHex(innerMsgBytes) };
+  return { type: msgType, ...base, msgTypeUrl: typeUrl, msgBytes: bytesToHex(innerBytes) };
 }
 
-function buildUnsignedTx(messageType, typeUrl, innerMsgBytes, meta) {
+function buildUnsignedTx(msgType, typeUrl, innerBytes, meta) {
+  const txTime = BigInt(Date.now() * 1000);
   const base = {
-    type:          messageType,
     signature:     null,
     createdHeight: meta.createdHeight || currentHeight,
-    time:          Number(BigInt(Date.now() * 1000)),
+    time:          Number(txTime),
     fee:           meta.fee || 10000,
     memo:          '',
     networkID:     meta.networkId || 1,
     chainID:       meta.chainId   || 1,
   };
-  if (messageType === 'send') {
-    return { ...base, msg: { '@type': typeUrl, value: bytesToB64(innerMsgBytes) } };
+  if (msgType === 'send') {
+    return { type: msgType, ...base, msg: { '@type': typeUrl, value: bytesToB64(innerBytes) } };
   }
-  return { ...base, msgTypeUrl: typeUrl, msgBytes: bytesToHex(innerMsgBytes) };
+  return { type: msgType, ...base, msgTypeUrl: typeUrl, msgBytes: bytesToHex(innerBytes) };
 }
 
-// ── RPC helpers ───────────────────────────────────────────────────────
-
-async function rpcPost(path, body) {
+// ─────────────────────────────────────────────────────────────────────────────
+// RPC HELPERS
+//
+// FIX (builder guide section 10): ALL endpoints use POST with JSON body.
+//   GET → 405. Even /v1/query/height needs POST with body '{}'.
+//   /v1/tx (singular) NOT /v1/txs.
+// ─────────────────────────────────────────────────────────────────────────────
+async function rpcPost(path, body={}) {
   const r = await fetch(getRPC() + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  const text = await r.text();
-  if (!r.ok) throw new Error(`HTTP ${r.status}: ${text}`);
-  return JSON.parse(text);
+  const txt = await r.text();
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${txt}`);
+  try { return JSON.parse(txt); } catch { return txt; }
 }
 
-async function rpcGet(path) {
-  const r = await fetch(getRPC() + path);
-  const text = await r.text();
-  if (!r.ok) throw new Error(`HTTP ${r.status}: ${text}`);
-  return JSON.parse(text);
-}
-
-async function adminPost(path, body) {
-  const r = await fetch(getAdmin() + path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const text = await r.text();
-  if (!r.ok) throw new Error(`HTTP ${r.status}: ${text}`);
-  return JSON.parse(text);
-}
-
-async function submitSignedTx(txObj) {
+async function submitTx(txObj) {
+  // FIX: endpoint is /v1/tx (singular) — not /v1/txs
   const data = await rpcPost('/v1/tx', txObj);
-  // response is the tx hash string (quoted JSON)
-  return typeof data === 'string' ? data : JSON.stringify(data);
+  return typeof data === 'string' ? data.replace(/^"|"$/g, '') : JSON.stringify(data);
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────
-
-let toastTimer;
-window.toast = function(msg, isErr = false) {
+// ─────────────────────────────────────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────────────────────────────────────
+let _toastTimer;
+window.toast = function(msg, isErr=false) {
   const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className   = isErr ? 'err' : 'ok';
+  el.textContent   = msg;
+  el.className     = isErr ? 'err' : 'ok';
   el.style.display = 'block';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.style.display = 'none'; }, 4000);
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.style.display = 'none'; }, 5000);
 };
 
-// ── Navigation ────────────────────────────────────────────────────────
-
+// ─────────────────────────────────────────────────────────────────────────────
+// NAVIGATION
+// ─────────────────────────────────────────────────────────────────────────────
 window.showPage = function(id, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
@@ -847,23 +1130,27 @@ window.showPage = function(id, btn) {
   if (id === 'markets') loadMarkets();
 };
 
-// ── RPC status ────────────────────────────────────────────────────────
-
+// ─────────────────────────────────────────────────────────────────────────────
+// RPC STATUS POLL
+// ─────────────────────────────────────────────────────────────────────────────
 window.checkRPC = async function() {
   try {
     const data = await rpcPost('/v1/query/height', {});
     currentHeight = data.height || 0;
-    document.getElementById('rpcDot').className    = 'dot live';
-    document.getElementById('rpcStatus').textContent = 'connected';
-    document.getElementById('heightBadge').textContent = 'height: ' + currentHeight;
+    document.getElementById('rpcDot').className      = 'dot live';
+    document.getElementById('rpcStatus').textContent = 'live';
+    document.getElementById('heightBadge').textContent = `block ${currentHeight}`;
     document.getElementById('ni_height').textContent   = currentHeight;
+    document.getElementById('ni_status').textContent   = 'connected';
     document.getElementById('ni_rpc').textContent      = getRPC();
-    // pre-fill resolution height
+    document.getElementById('sb_height').textContent   = currentHeight;
+    // auto-prefill resolution height if empty
     const rh = document.getElementById('c_resHeight');
-    if (rh && !rh.value) rh.value = currentHeight + 100;
+    if (rh && !rh.value) rh.value = currentHeight + 1000;
   } catch {
-    document.getElementById('rpcDot').className    = 'dot';
+    document.getElementById('rpcDot').className      = 'dot';
     document.getElementById('rpcStatus').textContent = 'offline';
+    document.getElementById('ni_status').textContent = 'offline';
   }
 };
 
@@ -871,272 +1158,473 @@ window.applyHost = function() {
   const h = document.getElementById('ni_host').value.trim();
   if (h) localStorage.setItem('praxis_rpc_host', h);
   checkRPC();
+  toast('Connecting to ' + h + '…');
 };
 
-// ── Outcome toggles ───────────────────────────────────────────────────
-
+// ─────────────────────────────────────────────────────────────────────────────
+// OUTCOME TOGGLES
+// ─────────────────────────────────────────────────────────────────────────────
 window.setOutcome = function(v) {
   selectedOutcome = v;
-  document.getElementById('btn_yes').className = 'outcome-btn yes' + (v === 1 ? ' active' : '');
-  document.getElementById('btn_no').className  = 'outcome-btn no'  + (v === 2 ? ' active' : '');
+  document.getElementById('btn_yes').className = 'outcome-btn yes' + (v===1 ? ' active' : '');
+  document.getElementById('btn_no').className  = 'outcome-btn no'  + (v===2 ? ' active' : '');
 };
 
 window.setResolveOutcome = function(v) {
   resolveOutcome = v;
-  document.getElementById('rbtn_yes').className = 'outcome-btn yes' + (v === 1 ? ' active' : '');
-  document.getElementById('rbtn_no').className  = 'outcome-btn no'  + (v === 2 ? ' active' : '');
+  document.getElementById('rbtn_yes').className = 'outcome-btn yes' + (v===1 ? ' active' : '');
+  document.getElementById('rbtn_no').className  = 'outcome-btn no'  + (v===2 ? ' active' : '');
 };
 
-// ── Signer ────────────────────────────────────────────────────────────
-
+// ─────────────────────────────────────────────────────────────────────────────
+// SIGNER
+// ─────────────────────────────────────────────────────────────────────────────
 window.loadKey = async function() {
-  const hex = document.getElementById('sk_input').value.trim();
-  if (!hex || hex.length !== 64) return toast('Private key must be 64 hex chars', true);
+  const hex = document.getElementById('sk_input').value.trim().toLowerCase();
+  if (hex.length !== 64) return toast('Private key must be exactly 64 hex chars', true);
   try {
-    signerPrivKey = hexToBytes(hex);
     if (!bls12_381) throw new Error('BLS library not loaded — check internet connection');
-    // G1 public key (48 bytes compressed) — correct for G2 signature scheme
-    signerPubKey  = bls12_381.getPublicKey(signerPrivKey);
-    const pubHex  = bytesToHex(signerPubKey);
-    // Canopy address = FIRST 20 bytes of SHA-256(pubkey)
-    // (SHA-256 = 32 bytes, slice(0,20) gives first 20)
-    const hashBuf = await crypto.subtle.digest('SHA-256', signerPubKey);
-    const addrBytes = new Uint8Array(hashBuf).slice(0, 20); // first 20 bytes
-    const addrHex   = bytesToHex(addrBytes);
+    signerPrivKey  = hexToBytes(hex);
+    // G1 public key — 48 bytes compressed
+    signerPubKey   = bls12_381.getPublicKey(signerPrivKey);
+    // FIX: address = SHA-256(pubKey).slice(0, 20) — FIRST 20 bytes
+    const hashBuf  = await crypto.subtle.digest('SHA-256', signerPubKey);
+    const addrBytes = new Uint8Array(hashBuf).slice(0, 20);
+    signerAddress   = bytesToHex(addrBytes);
 
-    document.getElementById('keyStatus').className     = 'key-status loaded';
-    document.getElementById('keyStatus').textContent   = '✓ Key loaded — ' + pubHex.slice(0, 16) + '…';
-    document.getElementById('sk_pubkey').style.display = 'block';
-    document.getElementById('sk_pubkeyVal').textContent = pubHex;
-    document.getElementById('sk_addrVal').textContent   = addrHex;
-    // auto-fill address fields
-    ['c_creator','c_resolver','p_forecaster','r_resolver','cl_addr','s_from'].forEach(id => {
+    document.getElementById('keyStatus').className   = 'key-status loaded';
+    document.getElementById('keyStatus').textContent = '✓ loaded — ' + signerAddress.slice(0,16) + '…';
+    document.getElementById('sk_derived').style.display = 'block';
+    document.getElementById('sk_pubkeyVal').textContent = bytesToHex(signerPubKey);
+    document.getElementById('sk_addrVal').textContent   = signerAddress;
+
+    // Auto-fill all address fields that are empty
+    ['c_creator','p_forecaster','r_resolver','cl_addr','s_from','w_addr','ft_addr'].forEach(id => {
       const el = document.getElementById(id);
-      if (el && !el.value) el.value = addrHex;
+      if (el && !el.value) el.value = signerAddress;
     });
+    // Auto-fill c_resolver only if it's also empty AND creator is filled
+    const cRes = document.getElementById('c_resolver');
+    // leave resolver empty — must be different address
+
     document.getElementById('sk_input').value = '';
-    toast('Key loaded — address derived');
-  } catch (e) {
-    toast('Failed to load key: ' + e.message, true);
+    toast('Key loaded — ' + signerAddress);
+  } catch(e) {
+    signerPrivKey = signerPubKey = signerAddress = null;
+    toast('Key load failed: ' + e.message, true);
   }
 };
 
 window.clearKey = function() {
-  signerPrivKey = null;
-  signerPubKey  = null;
+  signerPrivKey = signerPubKey = signerAddress = null;
   document.getElementById('keyStatus').className   = 'key-status empty';
   document.getElementById('keyStatus').textContent = 'No key loaded';
-  document.getElementById('sk_pubkey').style.display = 'none';
+  document.getElementById('sk_derived').style.display = 'none';
   document.getElementById('sk_input').value = '';
   toast('Key cleared');
 };
 
-// ── Account query ─────────────────────────────────────────────────────
-
+// ─────────────────────────────────────────────────────────────────────────────
+// ACCOUNT QUERY
+// ─────────────────────────────────────────────────────────────────────────────
 window.queryAccount = async function() {
   const addr = document.getElementById('w_addr').value.trim().toLowerCase();
-  if (!addr || addr.length !== 40) return toast('Address must be 40 hex chars', true);
+  if (addr.length !== 40) return toast('Address must be 40 hex chars', true);
   try {
     const data = await rpcPost('/v1/query/account', { address: addr });
     document.getElementById('w_result').style.display  = 'block';
-    document.getElementById('w_balance').textContent   = data.amount      || '0';
+    document.getElementById('w_balance').textContent   = data.amount || '0';
     document.getElementById('w_staked').textContent    = data.stakedAmount || '0';
     document.getElementById('w_addrDisplay').textContent = addr;
-  } catch (e) {
+  } catch(e) {
     toast('Query failed: ' + e.message, true);
   }
 };
 
-// ── Markets ───────────────────────────────────────────────────────────
-// Markets are stored under prefix 0x10 (16 decimal).
-// The state query endpoint returns entries whose keys start with that prefix.
+// ─────────────────────────────────────────────────────────────────────────────
+// FAILED TX CHECK
+// ─────────────────────────────────────────────────────────────────────────────
+window.checkFailedTxs = async function() {
+  const addr = document.getElementById('ft_addr').value.trim().toLowerCase();
+  if (addr.length !== 40) return toast('Address must be 40 hex chars', true);
+  try {
+    const data = await rpcPost('/v1/query/failed-txs', { address: addr, perPage: 20 });
+    const count = data.totalCount || 0;
+    const el    = document.getElementById('ft_result');
+    el.style.display = 'block';
+    el.innerHTML = count === 0
+      ? `<div class="alert alert-green">✓ No failed transactions for ${addr.slice(0,12)}…</div>`
+      : `<div class="alert alert-red">⚠ ${count} failed transaction(s) found</div>`;
+  } catch(e) {
+    toast('Query failed: ' + e.message, true);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARKETS PAGE
+//
+// FIX (Roadmap item 01): Markets page was showing raw state key bytes.
+// The correct approach is to query by-sender transactions for create_market
+// and reconstruct market data from the transaction fields.
+//
+// Chain state prefix scan via /v1/query/state is used to get the count,
+// then /v1/query/txs-by-sender reconstructs the actual question/meta.
+//
+// Because we don't know all creator addresses up front, we use
+// /v1/query/state with the market prefix to get raw entries and decode
+// what we can (market ID, pools, status from proto bytes).
+//
+// The market state key format: JoinLenPrefix(0x10, bigEndian(id))
+// This means the prefix for a range scan is the hex of [0x01, 0x10]
+// which in Canopy's state query is prefix=0110
+//
+// FIX (builder guide section 11 note on JoinLenPrefix):
+//   JoinLenPrefix prepends a 1-byte length prefix to each segment.
+//   So prefix 0x10 becomes the 2-byte sequence: [0x01, 0x10] = "0110" in hex.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Minimal protobuf decoder for Market fields we care about.
+// Market proto (from tx.proto):
+//   uint64 id=1; bytes creator=2; string question=3; string description=4;
+//   bytes resolver=5; uint64 resolution_height=6; uint64 stake_amount=7;
+//   uint64 stake_bond=8; uint64 yes_pool=9; uint64 no_pool=10;
+//   uint32 status=11; uint32 winning_outcome=12
+
+function decodeVarint(buf, pos) {
+  let result = 0n, shift = 0n;
+  while (pos < buf.length) {
+    const b = BigInt(buf[pos++]);
+    result |= (b & 0x7fn) << shift;
+    shift += 7n;
+    if ((b & 0x80n) === 0n) break;
+  }
+  return { value: result, pos };
+}
+
+function decodeMarket(bytes) {
+  const m = { id:0, question:'', status:0, yesPool:0n, noPool:0n, resolutionHeight:0n, winningOutcome:0 };
+  if (!bytes || bytes.length === 0) return m;
+  const buf = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let pos = 0;
+  while (pos < buf.length) {
+    const { value: tagVal, pos: p1 } = decodeVarint(buf, pos);
+    pos = p1;
+    const fieldNum  = Number(tagVal >> 3n);
+    const wireType  = Number(tagVal & 7n);
+    if (wireType === 0) {
+      const { value, pos: p2 } = decodeVarint(buf, pos);
+      pos = p2;
+      if (fieldNum === 1)  m.id               = Number(value);
+      if (fieldNum === 6)  m.resolutionHeight  = value;
+      if (fieldNum === 9)  m.yesPool           = value;
+      if (fieldNum === 10) m.noPool            = value;
+      if (fieldNum === 11) m.status            = Number(value);
+      if (fieldNum === 12) m.winningOutcome     = Number(value);
+    } else if (wireType === 2) {
+      const { value: lenVal, pos: p2 } = decodeVarint(buf, pos);
+      const len = Number(lenVal); pos = p2;
+      const chunk = buf.slice(pos, pos + len); pos += len;
+      if (fieldNum === 3) m.question = new TextDecoder().decode(chunk);
+      if (fieldNum === 4) m.description = new TextDecoder().decode(chunk);
+    } else break; // unknown wire type — stop
+  }
+  return m;
+}
+
+// base64 string → Uint8Array
+function b64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
 
 window.loadMarkets = async function() {
   const el = document.getElementById('marketsList');
-  el.innerHTML = '<div class="loading"><span class="blink">▪▪▪</span> Scanning chain state…</div>';
+  el.innerHTML = '<div class="loading"><span class="blink">▪▪▪</span>&nbsp; scanning chain state</div>';
   try {
-    // prefix=10 hex = byte 0x10 = marketPrefix in contract.go
-    const data    = await rpcGet('/v1/query/state?prefix=10&limit=100&reverse=false');
-    const entries = (data.entries || data.results || []);
+    await checkRPC();
+    // FIX: correct prefix for market keys.
+    // JoinLenPrefix([0x10], id8bytes) → [0x01, 0x10, 0x08, ...id...]
+    // For a prefix scan we want all keys starting with [0x01, 0x10]
+    // In the Canopy state API, prefix is passed as hex.
+    // "0110" = bytes [0x01, 0x10]
+    const data    = await rpcPost('/v1/query/state', { prefix: '0110', limit: 100, reverse: false });
+    const entries = data.entries || data.results || data.result || [];
+
+    document.getElementById('sb_count').textContent = entries.length;
+
     if (entries.length === 0) {
-      el.innerHTML = '<div class="loading">No markets found on-chain yet. Create the first one!</div>';
+      el.innerHTML = `
+        <div class="alert alert-yellow">No markets on-chain yet.<br>Go to Create to open the first one.</div>`;
       return;
     }
+
+    // Decode each market from its proto bytes
+    const markets = [];
+    for (const e of entries) {
+      // value may be base64 (protojson) or hex string
+      let rawBytes;
+      try {
+        const val = e.value || e.Value || '';
+        if (val.match(/^[0-9a-f]+$/i) && val.length % 2 === 0) {
+          rawBytes = hexToBytes(val);
+        } else {
+          rawBytes = b64ToBytes(val);
+        }
+        markets.push(decodeMarket(rawBytes));
+      } catch(err) {
+        markets.push({ id: markets.length + 1, question: '(decode error)', status: 0, yesPool: 0n, noPool: 0n });
+      }
+    }
+
+    const statusLabel = (s, wo) => {
+      if (s === 0) return `<span class="badge badge-open"><span class="blink">●</span>&nbsp;OPEN</span>`;
+      if (s === 1) return `<span class="badge badge-resolved">✓&nbsp;RESOLVED ${wo===1?'YES':'NO'}</span>`;
+      return `<span class="badge badge-closed">CLOSED</span>`;
+    };
+
     el.innerHTML = `
-      <div style="padding:10px 14px;background:var(--green-dim);border:1px solid #00ff8830;border-radius:6px;font-size:11px;color:var(--green);margin-bottom:16px">
-        ✓ ${entries.length} market(s) found on-chain
+      <div class="alert alert-green" style="margin-bottom:16px">
+        ✓ ${markets.length} market(s) decoded from chain state
       </div>
       <div class="markets-grid">
-        ${entries.map((e, i) => `
+        ${markets.map(m => `
           <div class="market-card">
-            <span class="badge badge-open"><span class="blink">●</span> OPEN</span>
-            <div class="market-q">Market #${i + 1}</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div class="market-id">MARKET #${m.id || '?'}</div>
+              ${statusLabel(m.status, m.winningOutcome)}
+            </div>
+            <div class="market-q">${m.question || '(no question decoded)'}</div>
             <div class="market-meta">
-              <span>Key: <code style="font-size:9px">${(e.key || '').substring(0, 20)}…</code></span>
-              <span>${(e.value || '').length} bytes</span>
+              <span>res. block ${m.resolutionHeight ? Number(m.resolutionHeight) : '?'}</span>
+              ${m.status === 1 ? `<span>winner: ${m.winningOutcome === 1 ? 'YES' : 'NO'}</span>` : ''}
+            </div>
+            <div class="market-pools">
+              <div class="pool-bar pool-yes">
+                <div class="pool-lbl">YES POOL</div>
+                <div class="pool-val">${fmtAmount(m.yesPool)} μPRX</div>
+              </div>
+              <div class="pool-bar pool-no">
+                <div class="pool-lbl">NO POOL</div>
+                <div class="pool-val">${fmtAmount(m.noPool)} μPRX</div>
+              </div>
+            </div>
+            <div class="market-footer">
+              <button class="btn btn-ghost btn-sm" onclick="fillPredict(${m.id})">Predict</button>
+              ${m.status === 0 ? `<button class="btn btn-ghost btn-sm" onclick="fillResolve(${m.id})">Resolve</button>` : ''}
+              ${m.status === 1 ? `<button class="btn btn-ghost btn-sm" onclick="fillClaim(${m.id})">Claim</button>` : ''}
             </div>
           </div>`).join('')}
       </div>`;
-  } catch {
+  } catch(e) {
     el.innerHTML = `
-      <div style="padding:14px;background:var(--red-dim);border:1px solid #ff3b3b30;border-radius:6px;font-size:12px;color:var(--muted)">
-        ⚠ Cannot reach node at <code>${getRPC()}</code> — run <code>canopy start</code> and check the Node page.
+      <div class="alert alert-red">
+        ⚠ Cannot reach node at <code>${getRPC()}</code><br>
+        Run <code>canopy start</code> then check the Node page.
+        <br><br>Error: ${e.message}
       </div>`;
   }
 };
 
-// ── Build Payload Only (unsigned) ─────────────────────────────────────
+// Quick-fill helpers from market card buttons
+window.fillPredict = function(id) {
+  document.getElementById('p_marketId').value = id;
+  showPage('predict', document.querySelectorAll('.nav-item')[2]);
+};
+window.fillResolve = function(id) {
+  document.getElementById('r_marketId').value = id;
+  showPage('resolve', document.querySelectorAll('.nav-item')[3]);
+};
+window.fillClaim = function(id) {
+  document.getElementById('cl_marketId').value = id;
+  showPage('claim', document.querySelectorAll('.nav-item')[4]);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYLOAD BUILDERS (unsigned — for manual signing / inspection)
+// ─────────────────────────────────────────────────────────────────────────────
 
 function showPayload(prefix, tx) {
   document.getElementById(prefix + '_output').style.display = 'block';
   document.getElementById(prefix + '_payload').value = JSON.stringify(tx, null, 2);
 }
 
-window.buildCreateMarket = function() {
+function getCreateMarketParams() {
   const q   = document.getElementById('c_question').value.trim();
   const d   = document.getElementById('c_desc').value.trim();
   const cr  = document.getElementById('c_creator').value.trim().toLowerCase();
   const res = document.getElementById('c_resolver').value.trim().toLowerCase();
   const rh  = parseInt(document.getElementById('c_resHeight').value);
   const st  = parseInt(document.getElementById('c_stake').value);
-  const fee = parseInt(document.getElementById('c_fee').value);
-  if (!q)                     return toast('Question is required', true);
-  if (cr.length !== 40)       return toast('Creator address must be 40 hex chars', true);
-  if (res.length !== 40)      return toast('Resolver address must be 40 hex chars', true);
-  if (rh <= currentHeight)    return toast(`Resolution height must be > ${currentHeight}`, true);
-  if (st < 100000)             return toast('Min stake is 100,000 μPRX', true);
-  const inner = encodeCreateMarket({ creatorAddress: cr, question: q, description: d, resolverAddress: res, resolutionHeight: rh, stakeAmount: st });
-  showPayload('c', buildUnsignedTx('create_market', 'type.googleapis.com/types.MessageCreateMarket', inner, { fee }));
-  toast('Payload built');
+  const fee = parseInt(document.getElementById('c_fee').value) || 10000;
+  if (!q)                            throw new Error('Question is required');
+  if (cr.length !== 40)              throw new Error('Creator address must be 40 hex chars');
+  if (res.length !== 40)             throw new Error('Resolver address must be 40 hex chars');
+  if (cr === res)                    throw new Error('Creator and resolver must be different addresses');
+  if (!rh || rh < currentHeight+100) throw new Error(`Resolution height must be at least ${currentHeight+100}`);
+  if (!st || st <= 0)                throw new Error('Stake amount must be > 0');
+  return { q, d, cr, res, rh, st, fee };
+}
+
+window.buildCreateMarket = function() {
+  try {
+    const { q, d, cr, res, rh, st, fee } = getCreateMarketParams();
+    const inner = encodeCreateMarket({ creatorAddress:cr, question:q, description:d, resolverAddress:res, resolutionHeight:rh, stakeAmount:st });
+    showPayload('c', buildUnsignedTx('create_market', 'type.googleapis.com/types.MessageCreateMarket', inner, { fee }));
+    toast('Payload built');
+  } catch(e) { toast(e.message, true); }
 };
 
 window.buildSubmitPrediction = function() {
-  const mid  = parseInt(document.getElementById('p_marketId').value);
-  const fc   = document.getElementById('p_forecaster').value.trim().toLowerCase();
-  const amt  = parseInt(document.getElementById('p_amount').value);
-  const fee  = parseInt(document.getElementById('p_fee').value);
-  if (!mid)             return toast('Market ID required', true);
-  if (fc.length !== 40) return toast('Forecaster address must be 40 hex chars', true);
-  if (amt < 100000)     return toast('Minimum bet is 100,000 μPRX', true);
-  const inner = encodeSubmitPrediction({ forecasterAddress: fc, marketId: mid, outcome: selectedOutcome, amount: amt });
-  showPayload('p', buildUnsignedTx('submit_prediction', 'type.googleapis.com/types.MessageSubmitPrediction', inner, { fee }));
-  toast('Payload built');
+  try {
+    const mid = parseInt(document.getElementById('p_marketId').value);
+    const fc  = document.getElementById('p_forecaster').value.trim().toLowerCase();
+    const amt = parseInt(document.getElementById('p_amount').value);
+    const fee = parseInt(document.getElementById('p_fee').value) || 10000;
+    if (!mid)             throw new Error('Market ID required');
+    if (fc.length !== 40) throw new Error('Forecaster address must be 40 hex chars');
+    if (!amt || amt <= 0) throw new Error('Amount must be > 0');
+    const inner = encodeSubmitPrediction({ forecasterAddress:fc, marketId:mid, outcome:selectedOutcome, amount:amt });
+    showPayload('p', buildUnsignedTx('submit_prediction', 'type.googleapis.com/types.MessageSubmitPrediction', inner, { fee }));
+    toast('Payload built');
+  } catch(e) { toast(e.message, true); }
 };
 
 window.buildResolveMarket = function() {
-  const mid = parseInt(document.getElementById('r_marketId').value);
-  const res = document.getElementById('r_resolver').value.trim().toLowerCase();
-  const fee = parseInt(document.getElementById('r_fee').value);
-  if (!mid)              return toast('Market ID required', true);
-  if (res.length !== 40) return toast('Resolver address must be 40 hex chars', true);
-  const inner = encodeResolveMarket({ resolverAddress: res, marketId: mid, winningOutcome: resolveOutcome });
-  showPayload('r', buildUnsignedTx('resolve_market', 'type.googleapis.com/types.MessageResolveMarket', inner, { fee }));
-  toast('Payload built');
+  try {
+    const mid = parseInt(document.getElementById('r_marketId').value);
+    const res = document.getElementById('r_resolver').value.trim().toLowerCase();
+    const fee = parseInt(document.getElementById('r_fee').value) || 10000;
+    if (!mid)              throw new Error('Market ID required');
+    if (res.length !== 40) throw new Error('Resolver address must be 40 hex chars');
+    const inner = encodeResolveMarket({ resolverAddress:res, marketId:mid, winningOutcome:resolveOutcome });
+    showPayload('r', buildUnsignedTx('resolve_market', 'type.googleapis.com/types.MessageResolveMarket', inner, { fee }));
+    toast('Payload built');
+  } catch(e) { toast(e.message, true); }
 };
 
 window.buildClaim = function() {
-  const mid  = parseInt(document.getElementById('cl_marketId').value);
-  const addr = document.getElementById('cl_addr').value.trim().toLowerCase();
-  const fee  = parseInt(document.getElementById('cl_fee').value);
-  if (!mid)               return toast('Market ID required', true);
-  if (addr.length !== 40) return toast('Claimer address must be 40 hex chars', true);
-  const inner = encodeClaimWinnings({ claimerAddress: addr, marketId: mid });
-  showPayload('cl', buildUnsignedTx('claim_winnings', 'type.googleapis.com/types.MessageClaimWinnings', inner, { fee }));
-  toast('Payload built');
+  try {
+    const mid  = parseInt(document.getElementById('cl_marketId').value);
+    const addr = document.getElementById('cl_addr').value.trim().toLowerCase();
+    const fee  = parseInt(document.getElementById('cl_fee').value) || 10000;
+    if (!mid)               throw new Error('Market ID required');
+    if (addr.length !== 40) throw new Error('Claimer address must be 40 hex chars');
+    const inner = encodeClaimWinnings({ claimerAddress:addr, marketId:mid });
+    showPayload('cl', buildUnsignedTx('claim_winnings', 'type.googleapis.com/types.MessageClaimWinnings', inner, { fee }));
+    toast('Payload built');
+  } catch(e) { toast(e.message, true); }
 };
 
 window.buildSend = function() {
-  const from = document.getElementById('s_from').value.trim().toLowerCase();
-  const to   = document.getElementById('s_to').value.trim().toLowerCase();
-  const amt  = parseInt(document.getElementById('s_amount').value);
-  const fee  = parseInt(document.getElementById('s_fee').value);
-  if (from.length !== 40) return toast('From address must be 40 hex chars', true);
-  if (to.length !== 40)   return toast('To address must be 40 hex chars', true);
-  if (!amt || amt <= 0)   return toast('Amount must be > 0', true);
-  const inner = encodeMessageSend(from, to, amt);
-  showPayload('s', buildUnsignedTx('send', 'type.googleapis.com/types.MessageSend', inner, { fee }));
-  toast('Payload built');
+  try {
+    const from = document.getElementById('s_from').value.trim().toLowerCase();
+    const to   = document.getElementById('s_to').value.trim().toLowerCase();
+    const amt  = parseInt(document.getElementById('s_amount').value);
+    const fee  = parseInt(document.getElementById('s_fee').value) || 10000;
+    if (from.length !== 40) throw new Error('From address must be 40 hex chars');
+    if (to.length !== 40)   throw new Error('To address must be 40 hex chars');
+    if (!amt || amt <= 0)   throw new Error('Amount must be > 0');
+    const inner = encodeSend(from, to, amt);
+    showPayload('s', buildUnsignedTx('send', 'type.googleapis.com/types.MessageSend', inner, { fee }));
+    toast('Payload built');
+  } catch(e) { toast(e.message, true); }
 };
 
-// ── Sign & Submit ─────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// SIGN AND SUBMIT — shared submit logic with pending indicator
+// ─────────────────────────────────────────────────────────────────────────────
 
-async function doSignAndSubmit(messageType, typeUrl, innerMsgBytes, meta) {
+function setPending(btnId, pendId, active) {
+  const btn  = document.getElementById(btnId);
+  const pend = document.getElementById(pendId);
+  if (btn)  btn.disabled = active;
+  if (pend) pend.style.display = active ? 'flex' : 'none';
+}
+
+async function doSignAndSubmit(msgType, typeUrl, innerBytes, meta, btnId, pendId) {
   if (!signerPrivKey) return toast('Load a private key in the Signer panel first', true);
+  setPending(btnId, pendId, true);
   try {
-    const tx   = await buildSignedTx(messageType, typeUrl, innerMsgBytes, meta);
-    const hash = await submitSignedTx(tx);
-    toast('✓ Submitted: ' + hash.slice(0, 66));
-    checkRPC();
-  } catch (e) {
+    const tx   = await buildSignedTx(msgType, typeUrl, innerBytes, meta);
+    const hash = await submitTx(tx);
+    toast('✓ Submitted — ' + (hash.length > 20 ? hash.slice(0,20)+'…' : hash));
+    await checkRPC();
+    if (msgType === 'create_market') setTimeout(loadMarkets, 3000);
+  } catch(e) {
     toast('Error: ' + e.message, true);
+  } finally {
+    setPending(btnId, pendId, false);
   }
 }
 
 window.signAndSubmitCreateMarket = async function() {
-  const q   = document.getElementById('c_question').value.trim();
-  const d   = document.getElementById('c_desc').value.trim();
-  const cr  = document.getElementById('c_creator').value.trim().toLowerCase();
-  const res = document.getElementById('c_resolver').value.trim().toLowerCase();
-  const rh  = parseInt(document.getElementById('c_resHeight').value);
-  const st  = parseInt(document.getElementById('c_stake').value);
-  const fee = parseInt(document.getElementById('c_fee').value);
-  if (!q)                  return toast('Question is required', true);
-  if (cr.length !== 40)    return toast('Creator address must be 40 hex chars', true);
-  if (res.length !== 40)   return toast('Resolver address must be 40 hex chars', true);
-  if (rh <= currentHeight) return toast(`Resolution height must be > ${currentHeight}`, true);
-  if (st < 100000)          return toast('Min stake is 100,000 μPRX', true);
-  const inner = encodeCreateMarket({ creatorAddress: cr, question: q, description: d, resolverAddress: res, resolutionHeight: rh, stakeAmount: st });
-  await doSignAndSubmit('create_market', 'type.googleapis.com/types.MessageCreateMarket', inner, { fee });
+  try {
+    const { q, d, cr, res, rh, st, fee } = getCreateMarketParams();
+    const inner = encodeCreateMarket({ creatorAddress:cr, question:q, description:d, resolverAddress:res, resolutionHeight:rh, stakeAmount:st });
+    await doSignAndSubmit('create_market', 'type.googleapis.com/types.MessageCreateMarket', inner, { fee }, 'btn_create', 'pend_create');
+  } catch(e) { toast(e.message, true); }
 };
 
 window.signAndSubmitPrediction = async function() {
-  const mid = parseInt(document.getElementById('p_marketId').value);
-  const fc  = document.getElementById('p_forecaster').value.trim().toLowerCase();
-  const amt = parseInt(document.getElementById('p_amount').value);
-  const fee = parseInt(document.getElementById('p_fee').value);
-  if (!mid)             return toast('Market ID required', true);
-  if (fc.length !== 40) return toast('Forecaster address must be 40 hex chars', true);
-  if (amt < 100000)     return toast('Minimum bet is 100,000 μPRX', true);
-  const inner = encodeSubmitPrediction({ forecasterAddress: fc, marketId: mid, outcome: selectedOutcome, amount: amt });
-  await doSignAndSubmit('submit_prediction', 'type.googleapis.com/types.MessageSubmitPrediction', inner, { fee });
+  try {
+    const mid = parseInt(document.getElementById('p_marketId').value);
+    const fc  = document.getElementById('p_forecaster').value.trim().toLowerCase();
+    const amt = parseInt(document.getElementById('p_amount').value);
+    const fee = parseInt(document.getElementById('p_fee').value) || 10000;
+    if (!mid)             throw new Error('Market ID required');
+    if (fc.length !== 40) throw new Error('Forecaster address must be 40 hex chars');
+    if (!amt || amt <= 0) throw new Error('Amount must be > 0');
+    const inner = encodeSubmitPrediction({ forecasterAddress:fc, marketId:mid, outcome:selectedOutcome, amount:amt });
+    await doSignAndSubmit('submit_prediction', 'type.googleapis.com/types.MessageSubmitPrediction', inner, { fee }, 'btn_predict', 'pend_predict');
+  } catch(e) { toast(e.message, true); }
 };
 
 window.signAndSubmitResolve = async function() {
-  const mid = parseInt(document.getElementById('r_marketId').value);
-  const res = document.getElementById('r_resolver').value.trim().toLowerCase();
-  const fee = parseInt(document.getElementById('r_fee').value);
-  if (!mid)              return toast('Market ID required', true);
-  if (res.length !== 40) return toast('Resolver address must be 40 hex chars', true);
-  const inner = encodeResolveMarket({ resolverAddress: res, marketId: mid, winningOutcome: resolveOutcome });
-  await doSignAndSubmit('resolve_market', 'type.googleapis.com/types.MessageResolveMarket', inner, { fee });
+  try {
+    const mid = parseInt(document.getElementById('r_marketId').value);
+    const res = document.getElementById('r_resolver').value.trim().toLowerCase();
+    const fee = parseInt(document.getElementById('r_fee').value) || 10000;
+    if (!mid)              throw new Error('Market ID required');
+    if (res.length !== 40) throw new Error('Resolver address must be 40 hex chars');
+    const inner = encodeResolveMarket({ resolverAddress:res, marketId:mid, winningOutcome:resolveOutcome });
+    await doSignAndSubmit('resolve_market', 'type.googleapis.com/types.MessageResolveMarket', inner, { fee }, 'btn_resolve', 'pend_resolve');
+  } catch(e) { toast(e.message, true); }
 };
 
 window.signAndSubmitClaim = async function() {
-  const mid  = parseInt(document.getElementById('cl_marketId').value);
-  const addr = document.getElementById('cl_addr').value.trim().toLowerCase();
-  const fee  = parseInt(document.getElementById('cl_fee').value);
-  if (!mid)               return toast('Market ID required', true);
-  if (addr.length !== 40) return toast('Claimer address must be 40 hex chars', true);
-  const inner = encodeClaimWinnings({ claimerAddress: addr, marketId: mid });
-  await doSignAndSubmit('claim_winnings', 'type.googleapis.com/types.MessageClaimWinnings', inner, { fee });
+  try {
+    const mid  = parseInt(document.getElementById('cl_marketId').value);
+    const addr = document.getElementById('cl_addr').value.trim().toLowerCase();
+    const fee  = parseInt(document.getElementById('cl_fee').value) || 10000;
+    if (!mid)               throw new Error('Market ID required');
+    if (addr.length !== 40) throw new Error('Claimer address must be 40 hex chars');
+    const inner = encodeClaimWinnings({ claimerAddress:addr, marketId:mid });
+    await doSignAndSubmit('claim_winnings', 'type.googleapis.com/types.MessageClaimWinnings', inner, { fee }, 'btn_claim', 'pend_claim');
+  } catch(e) { toast(e.message, true); }
 };
 
 window.signAndSubmitSend = async function() {
-  const from = document.getElementById('s_from').value.trim().toLowerCase();
-  const to   = document.getElementById('s_to').value.trim().toLowerCase();
-  const amt  = parseInt(document.getElementById('s_amount').value);
-  const fee  = parseInt(document.getElementById('s_fee').value);
-  if (from.length !== 40) return toast('From address must be 40 hex chars', true);
-  if (to.length !== 40)   return toast('To address must be 40 hex chars', true);
-  if (!amt || amt <= 0)   return toast('Amount must be > 0', true);
-  const inner = encodeMessageSend(from, to, amt);
-  await doSignAndSubmit('send', 'type.googleapis.com/types.MessageSend', inner, { fee });
+  try {
+    const from = document.getElementById('s_from').value.trim().toLowerCase();
+    const to   = document.getElementById('s_to').value.trim().toLowerCase();
+    const amt  = parseInt(document.getElementById('s_amount').value);
+    const fee  = parseInt(document.getElementById('s_fee').value) || 10000;
+    if (from.length !== 40) throw new Error('From address must be 40 hex chars');
+    if (to.length !== 40)   throw new Error('To address must be 40 hex chars');
+    if (!amt || amt <= 0)   throw new Error('Amount must be > 0');
+    const inner = encodeSend(from, to, amt);
+    await doSignAndSubmit('send', 'type.googleapis.com/types.MessageSend', inner, { fee }, 'btn_send', 'pend_send');
+  } catch(e) { toast(e.message, true); }
 };
 
-// ── Init ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────────────
 document.getElementById('ni_host').value = getRPCHost();
 checkRPC();
-setInterval(checkRPC, 10000);
+setInterval(checkRPC, 12000);
 
 </script>
 </body>
