@@ -97,6 +97,12 @@ func mulDiv(a, b, c uint64) uint64 {
 		new(big.Int).SetUint64(b),
 	)
 	result := new(big.Int).Div(num, new(big.Int).SetUint64(c))
+	// FIX (Bug #5): Uint64() silently truncates if result > MaxUint64.
+	// Cap at MaxUint64 rather than returning a silently wrong small number.
+	maxU64 := new(big.Int).SetUint64(^uint64(0))
+	if result.Cmp(maxU64) > 0 {
+		return ^uint64(0)
+	}
 	return result.Uint64()
 }
 
@@ -458,6 +464,12 @@ func (c *Contract) DeliverMessageSend(msg *MessageSend, fee uint64) *PluginDeliv
 		return &PluginDeliverResponse{Error: err}
 	}
 
+	// FIX (Bug #4): guard against overflow before adding amount + fee.
+	// If msg.Amount is near MaxUint64 and fee > 0, the sum wraps to a small
+	// number, bypassing the balance check and crediting an incorrect amount.
+	if fee > 0 && msg.Amount > ^uint64(0)-fee {
+		return &PluginDeliverResponse{Error: ErrInvalidAmount()}
+	}
 	amountToDeduct := msg.Amount + fee
 	if from.Amount < amountToDeduct {
 		return &PluginDeliverResponse{Error: ErrInsufficientFunds()}
@@ -1086,9 +1098,13 @@ func (c *Contract) DeliverClaimWinnings(msg *MessageClaimWinnings, fee uint64) *
 	pred.Claimed = true
 
 	// Update market pool balances to reflect the payout.
-	// Decrement the winning pool by the claimer's stake and the losing pool
-	// by their proportional share + treasury cut.
-	// FIX (Security Issue 4): mulDiv prevents overflow here too.
+	// Winning pool: decrement by the claimer's stake only.
+	// Losing pool: decrement by the claimer's proportional share only.
+	// The treasury cut is NOT subtracted per-claim here. losePoolAfterCut
+	// already has the treasury cut removed before claimerLoseShare is
+	// computed, so adding treasuryCut again to paidFromLose would double-
+	// count it on every claim, underflowing the pool to near-MaxUint64.
+	// FIX (Bug #2): removed treasuryCut from paidFromLose in both branches.
 	var claimerLoseShare uint64
 	if winPool > 0 {
 		claimerLoseShare = mulDiv(pred.Amount, losePoolAfterCut, winPool)
@@ -1099,9 +1115,8 @@ func (c *Contract) DeliverClaimWinnings(msg *MessageClaimWinnings, fee uint64) *
 		} else {
 			market.YesPool = 0
 		}
-		paidFromLose := claimerLoseShare + treasuryCut
-		if market.NoPool >= paidFromLose {
-			market.NoPool -= paidFromLose
+		if market.NoPool >= claimerLoseShare {
+			market.NoPool -= claimerLoseShare
 		} else {
 			market.NoPool = 0
 		}
@@ -1111,9 +1126,8 @@ func (c *Contract) DeliverClaimWinnings(msg *MessageClaimWinnings, fee uint64) *
 		} else {
 			market.NoPool = 0
 		}
-		paidFromLose := claimerLoseShare + treasuryCut
-		if market.YesPool >= paidFromLose {
-			market.YesPool -= paidFromLose
+		if market.YesPool >= claimerLoseShare {
+			market.YesPool -= claimerLoseShare
 		} else {
 			market.YesPool = 0
 		}
