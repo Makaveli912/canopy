@@ -107,7 +107,8 @@ func ErrMarketNotFound() *PluginError {
 }
 
 // ErrMarketClosed is returned when a prediction or resolution is attempted
-// on a market that is no longer open (already resolved or cancelled).
+// on a market that is no longer open (already resolved, cancelled, or past
+// its resolution height deadline).
 func ErrMarketClosed() *PluginError {
 	return NewError(20, DefaultModule, "market is not open")
 }
@@ -134,4 +135,47 @@ func ErrNoPredictionFound() *PluginError {
 // on a prediction they have already claimed.
 func ErrAlreadyClaimed() *PluginError {
 	return NewError(24, DefaultModule, "winnings have already been claimed for this prediction")
+}
+
+// ErrCreatorIsResolver is returned when a create_market message designates
+// the same address as both creator and resolver. A creator who resolves
+// their own market can always pick the outcome that suits them.
+// FIX (Security Issue 1 — CheckCreateMarket): replaces the generic
+// ErrInvalidAddress that was previously used for this case, giving a
+// specific, debuggable error code.
+func ErrCreatorIsResolver() *PluginError {
+	return NewError(25, DefaultModule, "creator and resolver must be different addresses")
+}
+
+// ErrCreatorCannotPredict is returned when the market creator attempts to
+// submit a prediction on their own market. Creators have information
+// advantage and potential indirect influence over the outcome.
+// FIX (Security Issue 1 — DeliverSubmitPrediction): new check added.
+func ErrCreatorCannotPredict() *PluginError {
+	return NewError(26, DefaultModule, "market creator cannot submit a prediction on their own market")
+}
+
+// ErrResolverCannotPredict is returned when the designated resolver attempts
+// to submit a prediction on a market they will resolve. Resolvers decide
+// the winning outcome and must never hold a financial stake in either side.
+// FIX (Security Issue 2 — DeliverSubmitPrediction): new check added.
+func ErrResolverCannotPredict() *PluginError {
+	return NewError(27, DefaultModule, "designated resolver cannot submit a prediction on a market they will resolve")
+}
+
+// ErrInvalidMarketId is returned when a market ID field is zero.
+// FIX (Logic Issue 3): replaces the generic ErrInvalidAmount that was
+// previously used for msg.MarketId == 0 checks, which produced the
+// misleading error message "amount is invalid" for an ID field.
+func ErrInvalidMarketId() *PluginError {
+	return NewError(28, DefaultModule, "market id must be non-zero")
+}
+
+// ErrInvalidResolutionHeight is returned when a market's resolution height
+// is either too close to the current block (below MinMarketDuration) or
+// too far in the future (above MaxMarketDuration).
+// FIX (Logic Issue 3 + Security Issue 5): replaces the generic ErrInvalidAmount
+// used for resolution height failures, and adds the upper-bound check.
+func ErrInvalidResolutionHeight() *PluginError {
+	return NewError(29, DefaultModule, "resolution height must be between MinMarketDuration and MaxMarketDuration blocks from now")
 }
