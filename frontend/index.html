@@ -1364,38 +1364,88 @@ window.loadMarkets = async function() {
   el.innerHTML = '<div class="loading"><span class="blink">▪▪▪</span>&nbsp; scanning chain state</div>';
   try {
     await checkRPC();
-    // FIX: correct prefix for market keys.
-    // JoinLenPrefix([0x10], id8bytes) → [0x01, 0x10, 0x08, ...id...]
-    // For a prefix scan we want all keys starting with [0x01, 0x10]
-    // In the Canopy state API, prefix is passed as hex.
-    // "0110" = bytes [0x01, 0x10]
-    const data    = await rpcPost('/v1/query/state', { prefix: '0110', limit: 100, reverse: false });
-    const entries = data.entries || data.results || data.result || [];
 
-    document.getElementById('sb_count').textContent = entries.length;
+    // /v1/query/state does not support prefix scans — it returns a full genesis
+    // dump. Instead we scan all blocks from 1 to currentHeight via
+    // /v1/query/txs-by-height and collect every create_market transaction.
+    // We build a market map keyed by market ID, then layer in resolve_market
+    // and submit_prediction txs to get current pool sizes and status.
+    //
+    // For large chains this could be slow — a future optimisation is to cache
+    // the last scanned height in localStorage and only scan new blocks.
 
-    if (entries.length === 0) {
+    const marketMap = {}; // id → market object
+    const BATCH = 500;    // perPage max that keeps responses fast
+
+    for (let h = 1; h <= currentHeight; h += BATCH) {
+      // txs-by-height only returns one block at a time, so we scan block by block.
+      // To avoid scanning every empty block we use txs-by-height with perPage=5000
+      // which returns all txs in that block. We increment one block at a time but
+      // skip blocks quickly when they return 0 results.
+      // For efficiency, scan in chunks: fetch up to BATCH blocks worth at once
+      // by iterating heights. In practice most blocks are empty so this is fast.
+      for (let bh = h; bh < Math.min(h + BATCH, currentHeight + 1); bh++) {
+        let data;
+        try {
+          data = await rpcPost('/v1/query/txs-by-height', { height: bh, perPage: 5000 });
+        } catch { continue; }
+        const results = data.results || [];
+        if (results.length === 0) continue;
+
+        for (const tx of results) {
+          const msgType = tx.messageType || tx.message_type || '';
+          const inner   = tx.transaction || tx;
+
+          if (msgType === 'create_market') {
+            // Extract fields from the transaction's msg payload.
+            // Canopy returns plugin tx fields under transaction.msg or transaction directly.
+            const msg = inner.msg || inner;
+            const id  = Object.keys(marketMap).length + 1;
+            // question/description may be top-level or nested under msg
+            const question    = msg.question    || inner.question    || '';
+            const description = msg.description || inner.description || '';
+            const resHeight   = msg.resolutionHeight || msg.resolution_height || inner.resolutionHeight || 0;
+            const creator     = tx.sender || '';
+            marketMap[id] = {
+              id,
+              question,
+              description,
+              resolutionHeight: BigInt(resHeight),
+              creator,
+              status: 0,
+              winningOutcome: 0,
+              yesPool: 0n,
+              noPool: 0n,
+            };
+          } else if (msgType === 'submit_prediction') {
+            const msg     = inner.msg || inner;
+            const mid     = Number(msg.marketId || msg.market_id || inner.marketId || 0);
+            const outcome = Number(msg.outcome || inner.outcome || 0);
+            const amount  = BigInt(msg.amount  || inner.amount  || 0);
+            if (marketMap[mid]) {
+              if (outcome === 1) marketMap[mid].yesPool += amount;
+              else if (outcome === 2) marketMap[mid].noPool += amount;
+            }
+          } else if (msgType === 'resolve_market') {
+            const msg = inner.msg || inner;
+            const mid = Number(msg.marketId || msg.market_id || inner.marketId || 0);
+            const wo  = Number(msg.winningOutcome || msg.winning_outcome || inner.winningOutcome || 0);
+            if (marketMap[mid]) {
+              marketMap[mid].status = 1;
+              marketMap[mid].winningOutcome = wo;
+            }
+          }
+        }
+      }
+    }
+
+    const markets = Object.values(marketMap);
+    document.getElementById('sb_count').textContent = markets.length;
+
+    if (markets.length === 0) {
       el.innerHTML = `
         <div class="alert alert-yellow">No markets on-chain yet.<br>Go to Create to open the first one.</div>`;
       return;
-    }
-
-    // Decode each market from its proto bytes
-    const markets = [];
-    for (const e of entries) {
-      // value may be base64 (protojson) or hex string
-      let rawBytes;
-      try {
-        const val = e.value || e.Value || '';
-        if (val.match(/^[0-9a-f]+$/i) && val.length % 2 === 0) {
-          rawBytes = hexToBytes(val);
-        } else {
-          rawBytes = b64ToBytes(val);
-        }
-        markets.push(decodeMarket(rawBytes));
-      } catch(err) {
-        markets.push({ id: markets.length + 1, question: '(decode error)', status: 0, yesPool: 0n, noPool: 0n });
-      }
     }
 
     const statusLabel = (s, wo) => {
