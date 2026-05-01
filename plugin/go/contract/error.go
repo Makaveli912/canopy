@@ -80,8 +80,7 @@ func ErrTxFeeBelowStateLimit() *PluginError {
 // ── Praxis-specific error codes — start at 15 to avoid built-in conflicts ─────
 
 // ErrWrongOutcome is returned when a claimer's prediction outcome does not
-// match the market's winning outcome. This is semantically distinct from
-// ErrInsufficientFunds and must not reuse code 9.
+// match the market's winning outcome.
 func ErrWrongOutcome() *PluginError {
 	return NewError(15, DefaultModule, "prediction outcome does not match the winning outcome")
 }
@@ -90,4 +89,49 @@ func ErrWrongOutcome() *PluginError {
 // a second prediction on a market they have already predicted on.
 func ErrDuplicatePrediction() *PluginError {
 	return NewError(16, DefaultModule, "a prediction already exists for this forecaster and market")
+}
+
+// ErrEmptyQuestion is returned when a create_market message has no question text.
+func ErrEmptyQuestion() *PluginError {
+	return NewError(17, DefaultModule, "market question must not be empty")
+}
+
+// ErrInvalidOutcome is returned when an outcome value is not 1 (YES) or 2 (NO).
+func ErrInvalidOutcome() *PluginError {
+	return NewError(18, DefaultModule, "outcome must be 1 (YES) or 2 (NO)")
+}
+
+// ErrMarketNotFound is returned when the market ID does not exist in state.
+func ErrMarketNotFound() *PluginError {
+	return NewError(19, DefaultModule, "market not found")
+}
+
+// ErrMarketClosed is returned when a prediction or resolution is attempted
+// on a market that is no longer open (already resolved or cancelled).
+func ErrMarketClosed() *PluginError {
+	return NewError(20, DefaultModule, "market is not open")
+}
+
+// ErrResolutionTooEarly is returned when a resolver attempts to resolve a
+// market before its declared resolution height has been reached.
+func ErrResolutionTooEarly() *PluginError {
+	return NewError(21, DefaultModule, "resolution height has not been reached yet")
+}
+
+// ErrMarketNotResolved is returned when a claim is attempted on a market
+// that has not yet been resolved.
+func ErrMarketNotResolved() *PluginError {
+	return NewError(22, DefaultModule, "market has not been resolved yet")
+}
+
+// ErrNoPredictionFound is returned when a claimer has no prediction recorded
+// for the given market.
+func ErrNoPredictionFound() *PluginError {
+	return NewError(23, DefaultModule, "no prediction found for this claimer and market")
+}
+
+// ErrAlreadyClaimed is returned when a winner attempts to claim winnings
+// on a prediction they have already claimed.
+func ErrAlreadyClaimed() *PluginError {
+	return NewError(24, DefaultModule, "winnings have already been claimed for this prediction")
 }
