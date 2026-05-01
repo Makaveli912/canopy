@@ -51,20 +51,24 @@ const MinMarketDuration = 100
 // FIX (Security Issue 5): Added upper bound — previously unbounded.
 const MaxMarketDuration = 1_000_000
 
-// TreasuryFeeBps is the protocol treasury cut taken from the losing pool
-// before paying out winners, in basis points. 200 = 2%.
+// ProtocolFeeNumerator / ProtocolFeeDenominator define the protocol treasury
+// cut taken from the losing pool before paying out winners.
+// 25 / 1000 = 2.5% — easier to read and adjust than basis points.
 // This mirrors Polymarket's revenue model.
-const TreasuryFeeBps = 200
+const (
+	ProtocolFeeNumerator   = 25
+	ProtocolFeeDenominator = 1000
+)
 
 // TreasuryAddress is the protocol treasury account that receives the losing-pool
 // cut on every winning claim.
-// TODO: Replace with your real multisig / governance-controlled address before mainnet.
-// Currently set to the ASCII bytes of "PRAXIS_TREASURY_ADDR" as a placeholder.
+// TODO: Replace with a real multisig or governance-controlled address before mainnet.
+// 20 random bytes — deliberately not an ASCII string to avoid accidental use.
 var TreasuryAddress = []byte{
-	0x50, 0x52, 0x41, 0x58, 0x49, 0x53, 0x5f, 0x54,
-	0x52, 0x45, 0x41, 0x53, 0x55, 0x52, 0x59, 0x5f,
-	0x41, 0x44, 0x44, 0x52,
-} // "PRAXIS_TREASURY_ADDR" — 20 bytes
+	0xe7, 0xc7, 0xda, 0xd1, 0x31, 0xa0, 0x3f, 0x7e,
+	0xa0, 0xcc, 0x09, 0xa6, 0x37, 0xad, 0x09, 0x6e,
+	0xb3, 0x49, 0x5f, 0x77,
+}
 
 // ── QueryId counter ───────────────────────────────────────────────────────────
 // Uses a monotonic atomic counter instead of math/rand.Uint64().
@@ -1062,7 +1066,7 @@ func (c *Contract) DeliverClaimWinnings(msg *MessageClaimWinnings, fee uint64) *
 	// FIX (Security Issue 4): Use mulDiv to prevent uint64 overflow in the
 	// intermediate multiplication. losePool * TreasuryFeeBps can exceed
 	// MaxUint64 for large pool sizes, silently wrapping to near-zero.
-	treasuryCut     := mulDiv(losePool, TreasuryFeeBps, 10000)
+	treasuryCut     := mulDiv(losePool, ProtocolFeeNumerator, ProtocolFeeDenominator)
 	losePoolAfterCut := losePool - treasuryCut
 
 	var payout uint64
