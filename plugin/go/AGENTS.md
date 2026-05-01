@@ -18,11 +18,12 @@ plugin/go/
 ├── chain.json           # Chain metadata (name, symbol, chainId, networkId)
 ├── Makefile             # Build targets — run `make build` before `canopy start`
 ├── pluginctl.sh         # Plugin lifecycle script (start/stop/restart/status)
+├── crypto/              # BLS12-381 signing helpers (key loading, sign-bytes, address derivation)
 │
 ├── contract/
 │   ├── plugin.go        # Socket protocol, StartPlugin(), StateRead/StateWrite. Do not modify.
 │   ├── contract.go      # ALL application logic lives here — this is the file to edit
-│   └── error.go         # Plugin error codes. Built-in: 1–14. Praxis: 15–16.
+│   └── error.go         # Plugin error codes. Built-in: 1–14. Praxis: 15–29.
 │
 └── proto/
     ├── tx.proto         # Transaction and state message definitions
@@ -91,7 +92,7 @@ not `[0x10, ...]`. When querying state by prefix, use `0110` (hex), not `10`.
 5. Add a `case *MessageXxx:` to the `CheckTx` switch and implement `CheckMessageXxx`
 6. Add a `case *MessageXxx:` to the `DeliverTx` switch and implement `DeliverMessageXxx`
 7. Add a `KeyForXxx` function using an unused byte prefix (> 0x12 for Praxis)
-8. If you need a new error, add it to `error.go` starting at code 17+
+8. If you need a new error, add it to `error.go` starting at code 30+
 
 ## Prompts That Work Well
 
