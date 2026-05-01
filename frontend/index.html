@@ -1029,7 +1029,7 @@ async function blsSign(msgBytes) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function buildSignedTx(msgType, typeUrl, innerBytes, meta) {
   // FIX: compute txTime ONCE — used identically in sign bytes AND body JSON
-  const txTime = BigInt(Date.now() * 1000); // microseconds
+  const txTime = BigInt(Date.now()) * 1000n; // microseconds — BigInt arithmetic avoids float precision loss
   const params = {
     txTime,
     fee:           meta.fee || 10000,
@@ -1066,7 +1066,7 @@ async function buildSignedTx(msgType, typeUrl, innerBytes, meta) {
 }
 
 function buildUnsignedTx(msgType, typeUrl, innerBytes, meta) {
-  const txTime = BigInt(Date.now() * 1000);
+  const txTime = BigInt(Date.now()) * 1000n; // microseconds — BigInt arithmetic avoids float precision loss
   const base = {
     signature:     null,
     createdHeight: meta.createdHeight || currentHeight,
@@ -1284,11 +1284,11 @@ window.checkFailedTxs = async function() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Minimal protobuf decoder for Market fields we care about.
-// Market proto (from tx.proto):
+// Market proto (from tx.proto) — field numbers must match exactly:
 //   uint64 id=1; bytes creator=2; string question=3; string description=4;
 //   bytes resolver=5; uint64 resolution_height=6; uint64 stake_amount=7;
-//   uint64 stake_bond=8; uint64 yes_pool=9; uint64 no_pool=10;
-//   uint32 status=11; uint32 winning_outcome=12
+//   uint64 yes_pool=8; uint64 no_pool=9; uint32 status=10;
+//   uint32 winning_outcome=11; uint64 stake_bond=12
 
 function decodeVarint(buf, pos) {
   let result = 0n, shift = 0n;
@@ -1316,17 +1316,25 @@ function decodeMarket(bytes) {
       pos = p2;
       if (fieldNum === 1)  m.id               = Number(value);
       if (fieldNum === 6)  m.resolutionHeight  = value;
-      if (fieldNum === 9)  m.yesPool           = value;
-      if (fieldNum === 10) m.noPool            = value;
-      if (fieldNum === 11) m.status            = Number(value);
-      if (fieldNum === 12) m.winningOutcome     = Number(value);
+      if (fieldNum === 8)  m.yesPool           = value;   // yes_pool=8 in tx.proto
+      if (fieldNum === 9)  m.noPool            = value;   // no_pool=9 in tx.proto
+      if (fieldNum === 10) m.status            = Number(value); // status=10
+      if (fieldNum === 11) m.winningOutcome     = Number(value); // winning_outcome=11
     } else if (wireType === 2) {
       const { value: lenVal, pos: p2 } = decodeVarint(buf, pos);
       const len = Number(lenVal); pos = p2;
       const chunk = buf.slice(pos, pos + len); pos += len;
       if (fieldNum === 3) m.question = new TextDecoder().decode(chunk);
       if (fieldNum === 4) m.description = new TextDecoder().decode(chunk);
-    } else break; // unknown wire type — stop
+    } else {
+      // Unknown wire type — skip field and continue. Stopping here would truncate
+      // decoding of all subsequent fields if any proto field uses a non-varint,
+      // non-length-delimited wire type (e.g. fixed32/fixed64 added in future).
+      // Wire type 1 = 64-bit (skip 8 bytes), wire type 5 = 32-bit (skip 4 bytes).
+      if (wireType === 1) { pos += 8; }
+      else if (wireType === 5) { pos += 4; }
+      else break; // truly unrecognised — stop to avoid infinite loop
+    }
   }
   return m;
 }
@@ -1337,6 +1345,18 @@ function b64ToBytes(b64) {
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
+}
+
+// escapeHtml prevents XSS from on-chain strings (question, description)
+// being injected raw into innerHTML. A market question containing
+// <script> or event handler attributes would execute otherwise.
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 window.loadMarkets = async function() {
@@ -1395,7 +1415,7 @@ window.loadMarkets = async function() {
               <div class="market-id">MARKET #${m.id || '?'}</div>
               ${statusLabel(m.status, m.winningOutcome)}
             </div>
-            <div class="market-q">${m.question || '(no question decoded)'}</div>
+            <div class="market-q">${escapeHtml(m.question || '(no question decoded)')}</div>
             <div class="market-meta">
               <span>res. block ${m.resolutionHeight ? Number(m.resolutionHeight) : '?'}</span>
               ${m.status === 1 ? `<span>winner: ${m.winningOutcome === 1 ? 'YES' : 'NO'}</span>` : ''}
@@ -1462,7 +1482,8 @@ function getCreateMarketParams() {
   if (cr.length !== 40)              throw new Error('Creator address must be 40 hex chars');
   if (res.length !== 40)             throw new Error('Resolver address must be 40 hex chars');
   if (cr === res)                    throw new Error('Creator and resolver must be different addresses');
-  if (!rh || rh < currentHeight+100) throw new Error(`Resolution height must be at least ${currentHeight+100}`);
+  if (!rh || rh < currentHeight+100)          throw new Error(`Resolution height must be at least ${currentHeight+100}`);
+  if (rh > currentHeight+1_000_000)            throw new Error(`Resolution height must be at most ${currentHeight+1000000} (MaxMarketDuration)`);
   if (!st || st <= 0)                throw new Error('Stake amount must be > 0');
   return { q, d, cr, res, rh, st, fee };
 }
@@ -1545,6 +1566,7 @@ function setPending(btnId, pendId, active) {
 
 async function doSignAndSubmit(msgType, typeUrl, innerBytes, meta, btnId, pendId) {
   if (!signerPrivKey) return toast('Load a private key in the Signer panel first', true);
+  if (currentHeight === 0) return toast('Node not connected — wait for block height to load', true);
   setPending(btnId, pendId, true);
   try {
     const tx   = await buildSignedTx(msgType, typeUrl, innerBytes, meta);
