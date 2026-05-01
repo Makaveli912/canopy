@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"log"
+	"math/big"
 	"sync/atomic"
 
 	"google.golang.org/protobuf/proto"
@@ -41,17 +42,24 @@ var ContractConfig = &PluginConfig{
 
 // MinMarketDuration is the minimum number of blocks between market creation
 // and resolution. Prevents flash markets designed to exploit timing or
-// frontrun the resolver. (Roadmap item 09)
+// frontrun the resolver.
 const MinMarketDuration = 100
+
+// MaxMarketDuration is the maximum number of blocks between market creation
+// and resolution. Prevents bonds from being locked indefinitely in
+// markets that can never realistically resolve.
+// FIX (Security Issue 5): Added upper bound — previously unbounded.
+const MaxMarketDuration = 1_000_000
 
 // TreasuryFeeBps is the protocol treasury cut taken from the losing pool
 // before paying out winners, in basis points. 200 = 2%.
-// This mirrors Polymarket's revenue model. (Roadmap item 10)
+// This mirrors Polymarket's revenue model.
 const TreasuryFeeBps = 200
 
 // TreasuryAddress is the protocol treasury account that receives the losing-pool
 // cut on every winning claim.
-// TODO: replace with your real multisig / governance-controlled address before mainnet.
+// TODO: Replace with your real multisig / governance-controlled address before mainnet.
+// Currently set to the ASCII bytes of "PRAXIS_TREASURY_ADDR" as a placeholder.
 var TreasuryAddress = []byte{
 	0x50, 0x52, 0x41, 0x58, 0x49, 0x53, 0x5f, 0x54,
 	0x52, 0x45, 0x41, 0x53, 0x55, 0x52, 0x59, 0x5f,
@@ -59,14 +67,33 @@ var TreasuryAddress = []byte{
 } // "PRAXIS_TREASURY_ADDR" — 20 bytes
 
 // ── QueryId counter ───────────────────────────────────────────────────────────
-// FIX (Bug #8): replaced math/rand.Uint64() with a monotonic atomic counter.
-// math/rand collisions within a batch silently misroute state reads.
+// Uses a monotonic atomic counter instead of math/rand.Uint64().
+// rand collisions within a batch silently misroute state reads.
 // An atomic counter guarantees uniqueness within a process lifetime.
 
 var queryCounter uint64
 
 func nextQueryId() uint64 {
 	return atomic.AddUint64(&queryCounter, 1)
+}
+
+// ── Overflow-safe arithmetic helpers ─────────────────────────────────────────
+// FIX (Security Issue 4): uint64 multiplication in payout math can silently
+// overflow, producing a tiny payout for the winner. All proportional
+// calculations now go through math/big for the intermediate multiply.
+
+// mulDiv computes (a * b) / c using big.Int for the intermediate product,
+// preventing uint64 overflow. Returns 0 if c is 0.
+func mulDiv(a, b, c uint64) uint64 {
+	if c == 0 {
+		return 0
+	}
+	num := new(big.Int).Mul(
+		new(big.Int).SetUint64(a),
+		new(big.Int).SetUint64(b),
+	)
+	result := new(big.Int).Div(num, new(big.Int).SetUint64(c))
+	return result.Uint64()
 }
 
 // ── init ──────────────────────────────────────────────────────────────────────
@@ -85,9 +112,9 @@ func init() {
 		anypb.File_google_protobuf_any_proto,
 		File_account_proto, File_event_proto, File_plugin_proto, File_tx_proto,
 	} {
-		// FIX (Bug #9): panic on marshal failure instead of silently appending
-		// a nil entry. A bad file descriptor here causes a confusing FSM
-		// handshake failure at startup — better to fail loud and early.
+		// Panic on marshal failure instead of silently appending a nil entry.
+		// A bad file descriptor causes a confusing FSM handshake failure —
+		// better to fail loud and early.
 		fd, err := proto.Marshal(protodesc.ToFileDescriptorProto(file))
 		if err != nil {
 			panic("praxis: failed to marshal file descriptor proto: " + err.Error())
@@ -153,13 +180,19 @@ func (c *Contract) CheckTx(request *PluginCheckRequest) *PluginCheckResponse {
 	if err != nil {
 		return &PluginCheckResponse{Error: err}
 	}
+
+	// FIX (Bug 1): Guard against empty Results or empty Entries before
+	// indexing. On a fresh chain before genesis sets FeeParams, this slice
+	// is empty and the previous code panicked with an index-out-of-range.
+	// When FeeParams is absent we default to a zero struct (no minimum fee).
 	minFees := new(FeeParams)
-	if err = Unmarshal(resp.Results[0].Entries[0].Value, minFees); err != nil {
-		return &PluginCheckResponse{Error: err}
+	if len(resp.Results) > 0 && len(resp.Results[0].Entries) > 0 {
+		if err = Unmarshal(resp.Results[0].Entries[0].Value, minFees); err != nil {
+			return &PluginCheckResponse{Error: err}
+		}
 	}
 
-	// FIX (Bug #5): route fee check to the correct minimum fee per tx type
-	// instead of always checking against SendFee.
+	// Route fee check to the correct minimum fee per tx type.
 	msg, err := FromAny(request.Tx.Msg)
 	if err != nil {
 		return &PluginCheckResponse{Error: err}
@@ -258,16 +291,16 @@ func (c *Contract) CheckCreateMarket(msg *MessageCreateMarket) *PluginCheckRespo
 	// vector. A creator who resolves their own market can always pick the
 	// outcome that suits them.
 	if bytes.Equal(msg.CreatorAddress, msg.ResolverAddress) {
-		return &PluginCheckResponse{Error: ErrInvalidAddress()}
+		return &PluginCheckResponse{Error: ErrCreatorIsResolver()}
 	}
-	// FIX (Bug #4): use ErrEmptyQuestion for semantic clarity.
 	if msg.Question == "" {
 		return &PluginCheckResponse{Error: ErrEmptyQuestion()}
 	}
 	if msg.StakeAmount == 0 {
 		return &PluginCheckResponse{Error: ErrInvalidAmount()}
 	}
-	// resolutionHeight enforcement is in DeliverTx — currentHeight unavailable here.
+	// ResolutionHeight range enforcement is in DeliverCreateMarket —
+	// currentHeight is unavailable here.
 	return &PluginCheckResponse{AuthorizedSigners: [][]byte{msg.CreatorAddress}}
 }
 
@@ -276,9 +309,8 @@ func (c *Contract) CheckSubmitPrediction(msg *MessageSubmitPrediction) *PluginCh
 		return &PluginCheckResponse{Error: ErrInvalidAddress()}
 	}
 	if msg.MarketId == 0 {
-		return &PluginCheckResponse{Error: ErrInvalidAmount()}
+		return &PluginCheckResponse{Error: ErrInvalidMarketId()}
 	}
-	// FIX (Bug #4): use ErrInvalidOutcome for semantic clarity.
 	if msg.Outcome != 1 && msg.Outcome != 2 {
 		return &PluginCheckResponse{Error: ErrInvalidOutcome()}
 	}
@@ -293,9 +325,8 @@ func (c *Contract) CheckResolveMarket(msg *MessageResolveMarket) *PluginCheckRes
 		return &PluginCheckResponse{Error: ErrInvalidAddress()}
 	}
 	if msg.MarketId == 0 {
-		return &PluginCheckResponse{Error: ErrInvalidAmount()}
+		return &PluginCheckResponse{Error: ErrInvalidMarketId()}
 	}
-	// FIX (Bug #4): use ErrInvalidOutcome for semantic clarity.
 	if msg.WinningOutcome != 1 && msg.WinningOutcome != 2 {
 		return &PluginCheckResponse{Error: ErrInvalidOutcome()}
 	}
@@ -307,7 +338,7 @@ func (c *Contract) CheckClaimWinnings(msg *MessageClaimWinnings) *PluginCheckRes
 		return &PluginCheckResponse{Error: ErrInvalidAddress()}
 	}
 	if msg.MarketId == 0 {
-		return &PluginCheckResponse{Error: ErrInvalidAmount()}
+		return &PluginCheckResponse{Error: ErrInvalidMarketId()}
 	}
 	return &PluginCheckResponse{AuthorizedSigners: [][]byte{msg.ClaimerAddress}}
 }
@@ -322,14 +353,14 @@ func (c *Contract) DeliverMessageSend(msg *MessageSend, fee uint64) *PluginDeliv
 	toQueryId   := nextQueryId()
 	feeQueryId  := nextQueryId()
 
-	fromKey     := KeyForAccount(msg.FromAddress)
-	toKey       := KeyForAccount(msg.ToAddress)
-	feePoolKey  := KeyForFeePool(c.Config.ChainId)
+	fromKey    := KeyForAccount(msg.FromAddress)
+	toKey      := KeyForAccount(msg.ToAddress)
+	feePoolKey := KeyForFeePool(c.Config.ChainId)
 
 	isSelfTransfer := bytes.Equal(fromKey, toKey)
 
-	// FIX (Bug #1): For self-transfers, only read one key to avoid the
-	// pointer-aliasing problem entirely. We handle the accounting separately.
+	// For self-transfers, only read one key to avoid the pointer-aliasing
+	// problem entirely. We handle the accounting separately.
 	var readKeys []*PluginKeyRead
 	if isSelfTransfer {
 		readKeys = []*PluginKeyRead{
@@ -379,7 +410,6 @@ func (c *Contract) DeliverMessageSend(msg *MessageSend, fee uint64) *PluginDeliv
 	}
 
 	// Self-transfer: sender pays only the fee. Amount goes back to the same account.
-	// We never read toBytes separately — from and to are the same account.
 	if isSelfTransfer {
 		if from.Amount < fee {
 			return &PluginDeliverResponse{Error: ErrInsufficientFunds()}
@@ -480,11 +510,16 @@ func (c *Contract) DeliverCreateMarket(msg *MessageCreateMarket, fee uint64) *Pl
 	log.Printf("DeliverCreateMarket: creator=%x question=%q stakeAmount=%d height=%d",
 		msg.CreatorAddress, msg.Question, msg.StakeAmount, c.currentHeight)
 
-	// FIX (Bug #3 + Roadmap item 05 + item 09):
 	// ResolutionHeight must be at least MinMarketDuration blocks in the future.
 	// This covers both "in the past" and "too soon" cases.
 	if msg.ResolutionHeight < c.currentHeight+MinMarketDuration {
-		return &PluginDeliverResponse{Error: ErrInvalidAmount()}
+		return &PluginDeliverResponse{Error: ErrInvalidResolutionHeight()}
+	}
+	// FIX (Security Issue 5): ResolutionHeight must not exceed MaxMarketDuration
+	// blocks in the future. Without this cap, a creator can lock all forecaster
+	// funds for an effectively infinite duration.
+	if msg.ResolutionHeight > c.currentHeight+MaxMarketDuration {
+		return &PluginDeliverResponse{Error: ErrInvalidResolutionHeight()}
 	}
 
 	counterQId := nextQueryId()
@@ -538,10 +573,9 @@ func (c *Contract) DeliverCreateMarket(msg *MessageCreateMarket, fee uint64) *Pl
 		return &PluginDeliverResponse{Error: err}
 	}
 
-	// FIX (Bug #2 + Roadmap item 13): The creator pays the tx fee only here.
-	// The stake bond is escrowed inside the Market struct (StakeBond field)
-	// and is NOT added to YesPool/NoPool — it is a separate returnable bond.
-	// It is returned to the creator in DeliverResolveMarket on clean resolution.
+	// The creator pays the tx fee only. The stake bond is escrowed inside the
+	// Market struct (StakeBond field) and is NOT added to YesPool/NoPool —
+	// it is a separate returnable bond, returned in DeliverResolveMarket.
 	totalCost := msg.StakeAmount + fee
 	if creator.Amount < totalCost {
 		return &PluginDeliverResponse{Error: ErrInsufficientFunds()}
@@ -634,10 +668,10 @@ func (c *Contract) DeliverSubmitPrediction(msg *MessageSubmitPrediction, fee uin
 		return &PluginDeliverResponse{Error: readResp.Error}
 	}
 
-	market          := new(Market)
-	forecaster      := new(Account)
-	feePool         := new(Pool)
-	existingPred    := new(Prediction)
+	market       := new(Market)
+	forecaster   := new(Account)
+	feePool      := new(Pool)
+	existingPred := new(Prediction)
 	var marketBytes, forecasterBytes, feePoolBytes, existingPredBytes []byte
 
 	for _, r := range readResp.Results {
@@ -659,13 +693,33 @@ func (c *Contract) DeliverSubmitPrediction(msg *MessageSubmitPrediction, fee uin
 	if err = Unmarshal(marketBytes, market); err != nil {
 		return &PluginDeliverResponse{Error: err}
 	}
-	// FIX (Bug #4): use ErrMarketNotFound for semantic clarity.
 	if market.Id == 0 {
 		return &PluginDeliverResponse{Error: ErrMarketNotFound()}
 	}
-	// FIX (Bug #4): use ErrMarketClosed for semantic clarity.
 	if market.Status != 0 {
 		return &PluginDeliverResponse{Error: ErrMarketClosed()}
+	}
+
+	// FIX (Logic Issue 2): Predictions must not be accepted on or after the
+	// resolution height. Without this check, a forecaster watching mempool
+	// could submit after seeing how real-world events unfolded while the
+	// market is technically still status=0/open.
+	if c.currentHeight >= market.ResolutionHeight {
+		return &PluginDeliverResponse{Error: ErrMarketClosed()}
+	}
+
+	// FIX (Security Issue 1): Block the creator from predicting on their own
+	// market. The creator knows the question and may have information
+	// advantage or indirect influence over the outcome.
+	if bytes.Equal(market.CreatorAddress, msg.ForecasterAddress) {
+		return &PluginDeliverResponse{Error: ErrCreatorCannotPredict()}
+	}
+
+	// FIX (Security Issue 2): Block the resolver from predicting on any market
+	// they are designated to resolve. The resolver decides the outcome — they
+	// must never have a financial stake in either side.
+	if bytes.Equal(market.ResolverAddress, msg.ForecasterAddress) {
+		return &PluginDeliverResponse{Error: ErrResolverCannotPredict()}
 	}
 
 	// Prevent duplicate predictions per forecaster per market.
@@ -756,10 +810,54 @@ func (c *Contract) DeliverResolveMarket(msg *MessageResolveMarket, fee uint64) *
 	resolverKey := KeyForAccount(msg.ResolverAddress)
 	feePoolKey  := KeyForFeePool(c.Config.ChainId)
 
-	readResp, err := c.plugin.StateRead(c, &PluginStateReadRequest{
+	// We need the market first to get CreatorAddress for the bond return.
+	// Read market alone first, then batch resolver + creator + feePool together.
+	marketReadResp, err := c.plugin.StateRead(c, &PluginStateReadRequest{
 		Keys: []*PluginKeyRead{
 			{QueryId: marketQId, Key: marketKey},
+		},
+	})
+	if err != nil {
+		return &PluginDeliverResponse{Error: err}
+	}
+	if marketReadResp.Error != nil {
+		return &PluginDeliverResponse{Error: marketReadResp.Error}
+	}
+
+	market := new(Market)
+	var marketBytes []byte
+	for _, r := range marketReadResp.Results {
+		if len(r.Entries) == 0 {
+			continue
+		}
+		if r.QueryId == marketQId {
+			marketBytes = r.Entries[0].Value
+		}
+	}
+	if err = Unmarshal(marketBytes, market); err != nil {
+		return &PluginDeliverResponse{Error: err}
+	}
+	if market.Id == 0 {
+		return &PluginDeliverResponse{Error: ErrMarketNotFound()}
+	}
+	if market.Status != 0 {
+		return &PluginDeliverResponse{Error: ErrMarketClosed()}
+	}
+	// Hard block — resolution is not permitted before the declared resolution height.
+	if c.currentHeight < market.ResolutionHeight {
+		return &PluginDeliverResponse{Error: ErrResolutionTooEarly()}
+	}
+	// Only the designated resolver address may call resolve.
+	if !bytes.Equal(market.ResolverAddress, msg.ResolverAddress) {
+		return &PluginDeliverResponse{Error: ErrInvalidAddress()}
+	}
+
+	// Now we know the creator address — batch the remaining reads together.
+	creatorKey := KeyForAccount(market.CreatorAddress)
+	readResp, err := c.plugin.StateRead(c, &PluginStateReadRequest{
+		Keys: []*PluginKeyRead{
 			{QueryId: resolverQId, Key: resolverKey},
+			{QueryId: creatorQId, Key: creatorKey},
 			{QueryId: feeQId, Key: feePoolKey},
 		},
 	})
@@ -770,47 +868,29 @@ func (c *Contract) DeliverResolveMarket(msg *MessageResolveMarket, fee uint64) *
 		return &PluginDeliverResponse{Error: readResp.Error}
 	}
 
-	market   := new(Market)
 	resolver := new(Account)
+	creator  := new(Account)
 	feePool  := new(Pool)
-	var marketBytes, resolverBytes, feePoolBytes []byte
+	var resolverBytes, creatorBytes, feePoolBytes []byte
 
 	for _, r := range readResp.Results {
 		if len(r.Entries) == 0 {
 			continue
 		}
 		switch r.QueryId {
-		case marketQId:
-			marketBytes = r.Entries[0].Value
 		case resolverQId:
 			resolverBytes = r.Entries[0].Value
+		case creatorQId:
+			creatorBytes = r.Entries[0].Value
 		case feeQId:
 			feePoolBytes = r.Entries[0].Value
 		}
 	}
 
-	if err = Unmarshal(marketBytes, market); err != nil {
+	if err = Unmarshal(resolverBytes, resolver); err != nil {
 		return &PluginDeliverResponse{Error: err}
 	}
-	// FIX (Bug #4): use ErrMarketNotFound for semantic clarity.
-	if market.Id == 0 {
-		return &PluginDeliverResponse{Error: ErrMarketNotFound()}
-	}
-	// FIX (Bug #4): use ErrMarketClosed for semantic clarity.
-	if market.Status != 0 {
-		return &PluginDeliverResponse{Error: ErrMarketClosed()}
-	}
-	// FIX (Bug #3 + Roadmap item 05): hard block — resolution is not permitted
-	// before the declared resolution height. No override, no early close.
-	if c.currentHeight < market.ResolutionHeight {
-		return &PluginDeliverResponse{Error: ErrResolutionTooEarly()}
-	}
-	// Only the designated resolver address may call resolve.
-	if !bytes.Equal(market.ResolverAddress, msg.ResolverAddress) {
-		return &PluginDeliverResponse{Error: ErrInvalidAddress()}
-	}
-
-	if err = Unmarshal(resolverBytes, resolver); err != nil {
+	if err = Unmarshal(creatorBytes, creator); err != nil {
 		return &PluginDeliverResponse{Error: err}
 	}
 	if err = Unmarshal(feePoolBytes, feePool); err != nil {
@@ -820,34 +900,9 @@ func (c *Contract) DeliverResolveMarket(msg *MessageResolveMarket, fee uint64) *
 		return &PluginDeliverResponse{Error: ErrInsufficientFunds()}
 	}
 
-	// FIX (Bug #2 + Roadmap item 13): Return the creator's stake bond on clean
-	// resolution. Read the creator account so we can credit the bond back.
-	creatorKey := KeyForAccount(market.CreatorAddress)
-	creatorReadResp, err := c.plugin.StateRead(c, &PluginStateReadRequest{
-		Keys: []*PluginKeyRead{
-			{QueryId: creatorQId, Key: creatorKey},
-		},
-	})
-	if err != nil {
-		return &PluginDeliverResponse{Error: err}
-	}
-	if creatorReadResp.Error != nil {
-		return &PluginDeliverResponse{Error: creatorReadResp.Error}
-	}
-
-	creator := new(Account)
-	var creatorBytes []byte
-	for _, r := range creatorReadResp.Results {
-		if len(r.Entries) == 0 {
-			continue
-		}
-		if r.QueryId == creatorQId {
-			creatorBytes = r.Entries[0].Value
-		}
-	}
-	if err = Unmarshal(creatorBytes, creator); err != nil {
-		return &PluginDeliverResponse{Error: err}
-	}
+	// FIX (Bug 2): Capture bondReturned BEFORE zeroing StakeBond so the log
+	// prints the correct value. Previously the log always printed 0.
+	bondReturned := market.StakeBond
 
 	resolver.Amount -= fee
 	feePool.Amount += fee
@@ -890,7 +945,7 @@ func (c *Contract) DeliverResolveMarket(msg *MessageResolveMarket, fee uint64) *
 		return &PluginDeliverResponse{Error: writeResp.Error}
 	}
 	log.Printf("Market #%d resolved: winningOutcome=%d stakeBondReturned=%d",
-		market.Id, market.WinningOutcome, market.StakeAmount)
+		market.Id, market.WinningOutcome, bondReturned)
 	return &PluginDeliverResponse{}
 }
 
@@ -955,7 +1010,6 @@ func (c *Contract) DeliverClaimWinnings(msg *MessageClaimWinnings, fee uint64) *
 	if err = Unmarshal(marketBytes, market); err != nil {
 		return &PluginDeliverResponse{Error: err}
 	}
-	// FIX (Bug #4): use ErrMarketNotFound for semantic clarity.
 	if market.Id == 0 {
 		return &PluginDeliverResponse{Error: ErrMarketNotFound()}
 	}
@@ -1003,17 +1057,20 @@ func (c *Contract) DeliverClaimWinnings(msg *MessageClaimWinnings, fee uint64) *
 		losePool = market.YesPool
 	}
 
-	// FIX (Bug #6 + Roadmap item 10): Apply the 2% treasury cut to the losing
-	// pool BEFORE calculating winner payouts. This mirrors Polymarket's model.
-	// treasuryCut = losePool * TreasuryFeeBps / 10000
-	treasuryCut := (losePool * TreasuryFeeBps) / 10000
+	// Apply the 2% treasury cut to the losing pool BEFORE calculating winner
+	// payouts. This mirrors Polymarket's revenue model.
+	// FIX (Security Issue 4): Use mulDiv to prevent uint64 overflow in the
+	// intermediate multiplication. losePool * TreasuryFeeBps can exceed
+	// MaxUint64 for large pool sizes, silently wrapping to near-zero.
+	treasuryCut     := mulDiv(losePool, TreasuryFeeBps, 10000)
 	losePoolAfterCut := losePool - treasuryCut
 
 	var payout uint64
 	if winPool > 0 {
 		// Winner receives their stake back plus a proportional share of the
 		// losing pool (after the treasury cut).
-		payout = pred.Amount + (pred.Amount*losePoolAfterCut)/winPool
+		// FIX (Security Issue 4): mulDiv prevents overflow on pred.Amount * losePoolAfterCut.
+		payout = pred.Amount + mulDiv(pred.Amount, losePoolAfterCut, winPool)
 	} else {
 		// Edge case: no one bet on the losing side — return original stake.
 		payout = pred.Amount
@@ -1024,12 +1081,13 @@ func (c *Contract) DeliverClaimWinnings(msg *MessageClaimWinnings, fee uint64) *
 	treasury.Amount += treasuryCut
 	pred.Claimed = true
 
-	// FIX (Bug #10): Update market pool balances to reflect the payout.
+	// Update market pool balances to reflect the payout.
 	// Decrement the winning pool by the claimer's stake and the losing pool
 	// by their proportional share + treasury cut.
+	// FIX (Security Issue 4): mulDiv prevents overflow here too.
 	var claimerLoseShare uint64
 	if winPool > 0 {
-		claimerLoseShare = (pred.Amount * losePoolAfterCut) / winPool
+		claimerLoseShare = mulDiv(pred.Amount, losePoolAfterCut, winPool)
 	}
 	if market.WinningOutcome == 1 {
 		if market.YesPool >= pred.Amount {
