@@ -14,7 +14,7 @@ let bls12_381 = null;
 // CONFIG & STATE
 // ═══════════════════════════════════════════
 const getRPCHost = () => localStorage.getItem('praxis_rpc_host') || 'prax.val-a.grad.dev.app.canopynetwork.org';
-const getRPC     = () => localStorage.getItem('praxis_rpc_host') ? `http://${getRPCHost()}:50002` : 'https://prax.val-a.grad.dev.app.canopynetwork.org/rpc';
+const getRPC     = () => localStorage.getItem('praxis_rpc_host') ? `http://${getRPCHost()}:50002` : '/api/rpc';
 
 let currentHeight = 0;
 let currentNetworkID = 1;
