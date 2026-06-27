@@ -18,7 +18,7 @@ const getRPC     = () => localStorage.getItem('praxis_rpc_host') ? `http://${get
 
 let currentHeight = 0;
 let currentNetworkID = 1;
-let currentChainID   = 1;
+let currentChainID   = 98800;
 let selectedOut   = true;
 let propOut       = true;
 let revOut        = true;
