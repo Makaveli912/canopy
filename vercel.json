@@ -1,8 +1,8 @@
 {
-  "rewrites": [
-    {
-      "source": "/api/rpc/(.*)",
-      "destination": "/api/rpc"
+  "outputDirectory": "Frontend",
+  "functions": {
+    "api/rpc.js": {
+      "runtime": "edge"
     }
-  ]
+  }
 }
