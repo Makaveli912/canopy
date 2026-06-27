@@ -3091,3 +3091,17 @@ window.updateTicker = function() {
 };
 setTimeout(updateTicker, 2000);
 setInterval(updateTicker, 30000);
+
+window.saveRPC = function() {
+  const el = document.getElementById('ni_rpc');
+  if (el) { localStorage.setItem('praxis_rpc_host', el.value.trim()); }
+  checkRPC();
+  toast('RPC endpoint saved. Reconnecting...');
+};
+window.testRPC = function() {
+  const el = document.getElementById('ni_rpc');
+  const url = el ? el.value.trim() : getRPC();
+  fetch(url + '/v1/query/height', {method:'POST', body:'{}'})
+    .then(r => r.json()).then(d => toast('Connected! Height: ' + (d.height||d.Height||JSON.stringify(d))))
+    .catch(e => toast('Failed: ' + e.message, true));
+};
