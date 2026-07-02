@@ -851,24 +851,55 @@ window.loadMarkets = async function () {
 
     // scan only new blocks
     if (scanFrom <= tipHeight) {
-      for (let h = scanFrom; h <= tipHeight; h += BATCH) {
+      const CONCURRENCY = 8;
+      const BATCH_DELAY_MS = 150;
+      const MAX_RETRIES = 3;
+
+      async function fetchHeightWithRetry(bh, attempt = 0) {
+        try {
+          const d = await rpc('/v1/query/txs-by-height', { height: bh, perPage: 50 });
+          return d.results || [];
+        } catch (e) {
+          if (attempt < MAX_RETRIES) {
+            await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+            return fetchHeightWithRetry(bh, attempt + 1);
+          }
+          console.warn('txs-by-height failed after retries for height', bh, e);
+          return null; // signal permanent failure for this height
+        }
+      }
+
+      let lastGoodHeight = scanFrom - 1;
+
+      for (let h = scanFrom; h <= tipHeight; h += CONCURRENCY) {
         const pct = Math.round(((h - scanFrom) / Math.max(tipHeight - scanFrom, 1)) * 100);
         el.innerHTML = '<div class="loading"><span class="blink">▪ ▪ ▪</span>&nbsp;&nbsp;Scanning blocks ' + h + ' / ' + tipHeight + ' &nbsp;<span style="color:var(--green)">' + pct + '%</span></div>';
-        const batchPromises = [];
-        for (let bh = h; bh < h + BATCH && bh <= tipHeight; bh++) {
-          batchPromises.push(
-            rpc('/v1/query/txs-by-height', { height: bh, perPage: 50 })
-              .then(d => allTxs.push(...(d.results || [])))
-              .catch(() => {})
-          );
+
+        const heights = [];
+        for (let bh = h; bh < h + CONCURRENCY && bh <= tipHeight; bh++) heights.push(bh);
+
+        const results = await Promise.all(heights.map(bh => fetchHeightWithRetry(bh)));
+
+        let batchOk = true;
+        for (let i = 0; i < results.length; i++) {
+          if (results[i] === null) { batchOk = false; break; }
+          allTxs.push(...results[i]);
+          lastGoodHeight = heights[i];
         }
-        await Promise.all(batchPromises);
+
+        // checkpoint after every batch so partial progress survives 502s
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(allTxs));
+          localStorage.setItem(CACHE_HEIGHT_KEY, String(lastGoodHeight));
+        } catch(e) {}
+
+        if (!batchOk) {
+          el.innerHTML = '<div class="alert ay">Node returned errors around block ' + lastGoodHeight + '. Progress saved — click refresh to resume.</div>';
+          return;
+        }
+
+        if (BATCH_DELAY_MS) await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
       }
-      // save cache
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(allTxs));
-        localStorage.setItem(CACHE_HEIGHT_KEY, String(tipHeight));
-      } catch(e) {}
     }
 
     const marketsMap = new Map();
