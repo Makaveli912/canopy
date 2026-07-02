@@ -242,7 +242,14 @@ window.checkRPC=async function(){
   try{
     const d=await rpc('/v1/query/height',{});currentHeight=d.height||0;
     currentNetworkID=d.network_id||d.networkID||currentNetworkID;
-    currentChainID=d.chain_id||d.chainID||currentChainID;
+    try{
+      const blk=await rpc('/v1/query/block-by-height',{height:currentHeight});
+      const hdr=blk?.blockHeader?.lastQuorumCertificate?.header;
+      if(hdr){
+        currentChainID=hdr.chainId||hdr.chainID||currentChainID;
+        currentNetworkID=hdr.networkID||hdr.networkId||currentNetworkID;
+      }
+    }catch(e){console.warn('block-by-height chainId lookup failed',e);}
     ['rpcDot','rpcDotM'].forEach(id=>{const e=document.getElementById(id);if(e)e.className='dot live';});
     const el=document.getElementById('rpcStatus');if(el)el.textContent='live';
     const hb=document.getElementById('hBadge');if(hb)hb.textContent=`block ${currentHeight}`;
